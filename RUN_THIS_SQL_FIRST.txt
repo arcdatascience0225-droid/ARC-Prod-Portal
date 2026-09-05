@@ -1,0 +1,20 @@
+IMPORTANT — run this in Supabase's SQL Editor BEFORE deploying the backend.
+create_tables.py only creates missing TABLES automatically (new tables in
+this batch — leads, staff_attendance, fee_structures, fee_installments —
+will be created fine on their own). It does NOT add missing COLUMNS to
+tables that already exist, so run this first or the backend will crash.
+
+-- New this batch: per-user custom permission override (null = use role defaults)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB;
+
+-- New this batch: class schedule text on a batch (e.g. "10:00 AM - 12:00 PM")
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS batch_time VARCHAR(100);
+
+-- (Earlier migrations, keep if not already applied — safe to re-run, IF NOT EXISTS)
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS max_violations INTEGER DEFAULT 10;
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS active_from TIMESTAMPTZ;
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS active_until TIMESTAMPTZ;
+ALTER TABLE results ADD COLUMN IF NOT EXISTS last_violation_reason VARCHAR(200);
+ALTER TABLE results ADD COLUMN IF NOT EXISTS last_violation_severity VARCHAR(20);
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'offline';
+ALTER TABLE mock_interview_evaluation ADD COLUMN IF NOT EXISTS max_score FLOAT DEFAULT 100;
