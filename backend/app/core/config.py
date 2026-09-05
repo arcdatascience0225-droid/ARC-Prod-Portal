@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Gemini (AI)
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"  # gemini-2.0-flash was shut down June 1, 2026 — this is Google's recommended replacement
+    GEMINI_MODEL: str = "gemini-3.6-flash"  # gemini-2.5-flash is restricted to pre-existing users only (not available to new API keys) — this is Google's own recommended replacement
 
     # Groq (alternative AI provider - genuinely free tier, no credit card
     # required; runs open-source models like Llama on fast LPU hardware).
