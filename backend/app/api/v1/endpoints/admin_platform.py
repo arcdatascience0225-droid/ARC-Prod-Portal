@@ -97,6 +97,18 @@ def create_batch(payload: schemas.BatchCreate, db: Session = Depends(get_db),
     return AdminService(db).create_batch(actor, payload)
 
 
+@router.patch("/batches/{batch_id}/faculty", response_model=schemas.BatchOut)
+def set_batch_faculty(batch_id: UUID, payload: dict, db: Session = Depends(get_db),
+                       actor=Depends(require_roles(*ADMIN_ROLES))):
+    """{"facultyId": "<uuid>"} — assign or reassign a batch's faculty (fixes
+    batches that ended up with no faculty)."""
+    from fastapi import HTTPException
+    faculty_id = payload.get("facultyId")
+    if not faculty_id:
+        raise HTTPException(status_code=400, detail="facultyId is required")
+    return AdminService(db).set_batch_faculty(actor, batch_id, faculty_id)
+
+
 @router.get("/batches", response_model=list[schemas.BatchOut])
 def list_batches(course_id: UUID | None = None, db: Session = Depends(get_db),
                   actor=Depends(require_roles(*ADMIN_ROLES, "Faculty", "Trainer"))):

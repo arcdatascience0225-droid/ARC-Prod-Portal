@@ -13,7 +13,7 @@ const ROLES = [
   { value: "student", label: "Student" },
   { value: "guest", label: "Guest" },
 ];
-const CHANNELS = ["in_app", "email", "sms", "push"];
+const CHANNELS = ["in_app", "email", "sms", "push", "telegram", "whatsapp"];
 
 export default function NotificationManagement() {
   const [list, setList] = useState<NotificationOut[]>([]);

@@ -108,9 +108,13 @@ class AdminService:
     def create_batch(self, actor, data):
         if not self.repo.get_course(data.courseId):
             raise HTTPException(404, "Course not found")
+        # The form promises "defaults to you" when no faculty is picked —
+        # that default was never actually applied here, so batches created
+        # without an explicit choice ended up with no faculty at all.
+        faculty_id = data.facultyId or actor.id
         batch = self.repo.create_batch(
             course_id=data.courseId, name=data.name, start_date=data.startDate,
-            end_date=data.endDate, faculty_id=data.facultyId, trainer_id=data.trainerId,
+            end_date=data.endDate, faculty_id=faculty_id, trainer_id=data.trainerId,
         )
         self.repo.add_audit_log(actor.id, "create_batch", "admin", "batch", batch.id, {})
         return batch
@@ -132,6 +136,15 @@ class AdminService:
         rec = self.repo.enroll_student(batch_id, user_id)
         self.repo.add_audit_log(actor.id, "enroll_student", "admin", "batch", batch_id, {"user_id": str(user_id)})
         return rec
+
+    def set_batch_faculty(self, actor, batch_id, faculty_id):
+        batch = self.repo.get_batch(batch_id)
+        if not batch:
+            raise HTTPException(404, "Batch not found")
+        batch.faculty_id = faculty_id
+        self.db.commit()
+        self.repo.add_audit_log(actor.id, "set_batch_faculty", "admin", "batch", batch_id, {"faculty_id": str(faculty_id)})
+        return batch
 
     # Payments
     def create_payment(self, actor, data):

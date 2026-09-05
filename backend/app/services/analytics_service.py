@@ -150,6 +150,48 @@ class AnalyticsService:
             "byModule": [{"module": r.module, "tokens": int(r.tokens or 0), "cost": float(r.cost or 0)} for r in rows],
         }
 
+    def student_analytics(self, user_id) -> dict:
+        """Per-student analytics: overall average score, coding success
+        rate, and simple strengths/weaknesses derived from per-assessment-type
+        performance. Handles a brand-new student with little/no data
+        gracefully instead of crashing on division by zero."""
+        results = self.repo.student_results(user_id)
+        submissions = self.repo.student_coding_submissions(user_id)
+
+        scores = [r.score for r in results if r.score is not None]
+        average_score = round(sum(scores) / len(scores), 1) if scores else 0.0
+
+        passed = [s for s in submissions if getattr(s, "status", "") == "passed"]
+        coding_success_rate = round(len(passed) / len(submissions) * 100, 1) if submissions else 0.0
+
+        # Group scores by assessment type to surface simple strengths/weaknesses.
+        by_type: dict = {}
+        for r in results:
+            if r.score is None:
+                continue
+            atype = getattr(getattr(r, "assessment", None), "type", None) or "general"
+            by_type.setdefault(atype, []).append(r.score)
+        type_averages = {t: sum(v) / len(v) for t, v in by_type.items()}
+
+        strengths = [t for t, avg in type_averages.items() if avg >= 70]
+        weaknesses = [t for t, avg in type_averages.items() if avg < 50]
+        if not strengths and not weaknesses and type_averages:
+            # Nothing clearly strong or weak — call out the highest/lowest anyway.
+            best = max(type_averages, key=type_averages.get)
+            worst = min(type_averages, key=type_averages.get)
+            strengths = [best]
+            weaknesses = [worst] if worst != best else []
+
+        return {
+            "userId": str(user_id),
+            "averageScore": average_score,
+            "codingSuccessRate": coding_success_rate,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "totalAssessments": len(results),
+            "totalSubmissions": len(submissions),
+        }
+
     def compute_career_readiness(self, user_id):
         analytics = self.student_analytics(user_id)
         score = round(

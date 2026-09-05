@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { dashboardApi, assessmentApi } from "../../api/studentApi";
 import { api } from "../../services/api";
 import type { Dashboard as DashboardType, AvailableAssessment } from "../../types";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
 
 interface DashboardStats {
   assessmentsTaken: number;
@@ -13,6 +13,7 @@ interface DashboardStats {
   courseName: string | null;
   facultyName: string | null;
   typeBreakdown: { type: string; averageScore: number; count: number }[];
+  recentScores: { date: string; score: number; title: string }[];
 }
 
 const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4"];
@@ -57,32 +58,69 @@ export default function Dashboard() {
         </div>
       )}
 
-      {stats && stats.typeBreakdown.length > 0 && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-800 mb-3">Performance by Assessment Type</h2>
-          <div className="h-64">
+          <h2 className="font-semibold text-gray-800 mb-3">Overview</h2>
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.typeBreakdown}
-                  dataKey="averageScore"
-                  nameKey="type"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={90}
-                  label={(entry) => `${entry.type}: ${entry.averageScore}%`}
-                >
-                  {stats.typeBreakdown.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
+              <BarChart data={[
+                { name: "Progress", value: data.progressPercent },
+                { name: "Attendance", value: data.attendancePercent },
+                { name: "Avg Score", value: stats?.averageScore ?? 0 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
                 <Tooltip />
-                <Legend />
-              </PieChart>
+                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-      )}
+
+        {stats && stats.typeBreakdown.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-800 mb-3">By Assessment Type</h2>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.typeBreakdown}
+                    dataKey="averageScore"
+                    nameKey="type"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    label={(entry) => `${entry.type}: ${entry.averageScore}%`}
+                  >
+                    {stats.typeBreakdown.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {stats && stats.recentScores.length > 1 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-800 mb-3">Score Trend</h2>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.recentScores}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="score" stroke="#22c55e" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white rounded-xl border border-gray-200 p-5">

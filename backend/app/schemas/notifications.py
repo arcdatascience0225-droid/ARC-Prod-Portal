@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-ALLOWED_CHANNELS = {"email", "sms", "in_app", "push"}
+ALLOWED_CHANNELS = {"email", "sms", "in_app", "push", "telegram", "whatsapp"}
 
 
 class NotificationCreate(BaseModel):

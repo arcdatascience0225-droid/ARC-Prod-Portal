@@ -429,6 +429,17 @@ class StudentService:
             for t, v in by_type.items()
         ]
 
+        # Recent scores (most recent 10, oldest first) for a trend line chart.
+        dated_results = [
+            (r.submitted_at, r.score, a.title)
+            for r, a in results if r.score is not None and r.submitted_at is not None
+        ]
+        dated_results.sort(key=lambda x: x[0])
+        recent_scores = [
+            {"date": d.strftime("%d %b"), "score": s, "title": t}
+            for d, s, t in dated_results[-10:]
+        ]
+
         batch_name = course_name = faculty_name = None
         link = self.db.query(BatchStudent).filter(BatchStudent.user_id == user_id).first()
         if link:
@@ -451,6 +462,7 @@ class StudentService:
             "courseName": course_name,
             "facultyName": faculty_name,
             "typeBreakdown": type_breakdown,
+            "recentScores": recent_scores,
         }
 
     def get_assessment_history(self, user_id: str) -> list[sc.AssessmentHistoryItem]:

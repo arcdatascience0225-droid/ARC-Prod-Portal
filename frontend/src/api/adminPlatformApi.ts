@@ -27,6 +27,7 @@ export const adminApi = {
   createBatch: (data: { courseId: string; name: string; startDate?: string; endDate?: string; facultyId?: string; trainerId?: string }) =>
     apiClient.post<BatchOut>(`/admin/batches`, data),
   enrollStudent: (batchId: string, userId: string) => apiClient.post(`/admin/batches/${batchId}/enroll/${userId}`),
+  setBatchFaculty: (batchId: string, facultyId: string) => apiClient.patch(`/admin/batches/${batchId}/faculty`, { facultyId }),
 
   permissionsCatalog: () => apiClient.get<{ path: string; label: string; group: string; defaultRoles: string[] }[]>(`/admin/permissions-catalog`),
   getUserPermissions: (userId: string) => apiClient.get<{ userId: string; isCustom: boolean; permissions: string[] }>(`/admin/users/${userId}/permissions`),
