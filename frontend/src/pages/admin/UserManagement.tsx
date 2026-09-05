@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { adminApi } from "../../api/adminPlatformApi";
-import type { UserOut } from "../../types";
+import type { UserOut, BatchOut } from "../../types";
 
 // value = canonical role stored in the DB (matches backend RoleEnum);
 // label = what's shown in the dropdown.
@@ -30,6 +30,11 @@ export default function UserManagement() {
   const [filterRole, setFilterRole] = useState("");
   const [error, setError] = useState("");
 
+  // Batch assignment (for students with no batch yet)
+  const [batches, setBatches] = useState<BatchOut[]>([]);
+  const [selectedBatch, setSelectedBatch] = useState<Record<string, string>>({});
+  const [assigning, setAssigning] = useState<string | null>(null);
+
   // Create User form state (Super Admin only)
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -50,6 +55,21 @@ export default function UserManagement() {
   };
 
   useEffect(() => { load(); }, [filterRole]);
+  useEffect(() => { adminApi.listBatches().then(setBatches).catch(() => {}); }, []);
+
+  const assignBatch = async (userId: string) => {
+    const batchId = selectedBatch[userId];
+    if (!batchId) return;
+    setAssigning(userId);
+    try {
+      await adminApi.enrollStudent(batchId, userId);
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAssigning(null);
+    }
+  };
 
   const changeRole = async (userId: string, role: string) => {
     try {
@@ -341,9 +361,28 @@ export default function UserManagement() {
                         {u.batchName}
                       </span>
                     ) : (
-                      <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full dark:bg-amber-950 dark:text-amber-300">
-                        Unassigned
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full dark:bg-amber-950 dark:text-amber-300">
+                          Unassigned
+                        </span>
+                        <select
+                          className="rounded-md border border-slate-200 px-1.5 py-1 text-xs max-w-[110px] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                          value={selectedBatch[u.id] || ""}
+                          onChange={(e) => setSelectedBatch({ ...selectedBatch, [u.id]: e.target.value })}
+                        >
+                          <option value="">Batch…</option>
+                          {batches.map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => assignBatch(u.id)}
+                          disabled={!selectedBatch[u.id] || assigning === u.id}
+                          className="text-xs text-brand-600 font-medium hover:underline disabled:opacity-40"
+                        >
+                          {assigning === u.id ? "…" : "Assign"}
+                        </button>
+                      </div>
                     )
                   ) : (
                     <span className="text-xs text-slate-300 dark:text-slate-600">—</span>
