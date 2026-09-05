@@ -143,7 +143,7 @@ Render connects to GitHub automatically when you create the service from a repo,
 
 ## Known Gotchas (learned the hard way — read before you hit them)
 
-1. **AI model names go stale.** Google and Groq periodically retire model IDs (e.g. `gemini-2.0-flash` was shut down June 1, 2026). If AI question generation suddenly starts failing with 500/502 errors, check `backend/app/core/config.py`'s `GEMINI_MODEL` / `GROQ_MODEL` defaults against the provider's current model list before assuming it's a code bug.
+1. **AI model names go stale — in two different ways.** (a) Google/Groq periodically shut down old model IDs outright (`gemini-2.0-flash` was shut down June 1, 2026). (b) Separately, some models get restricted to *only pre-existing users* and return `404 ... no longer available to new users` for a fresh API key even while the model still exists (this happened with `gemini-2.5-flash`). Either failure mode looks identical from the app's side (AI generation suddenly 500s) — check `backend/app/core/config.py`'s `GEMINI_MODEL` / `GROQ_MODEL` against the *current* model list on a fresh API key before assuming it's a code bug, and read the actual error text in Render's Logs tab — Google's error messages directly name the correct replacement model to switch to.
 
 2. **`postgresql://` vs `postgresql+psycopg2://`.** Every database URL from Render/Supabase/etc. needs the `+psycopg2` driver suffix added manually for SQLAlchemy — the raw URL they give you will fail with "connection to server at localhost" errors that look unrelated to the real cause.
 

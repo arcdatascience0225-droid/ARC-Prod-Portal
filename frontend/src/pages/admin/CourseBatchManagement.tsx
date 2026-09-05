@@ -8,7 +8,7 @@ export default function CourseBatchManagement() {
   const [faculty, setFaculty] = useState<UserOut[]>([]);
   const [selectedCourse, setSelectedCourse] = useState("");
   const [form, setForm] = useState({ name: "", code: "", description: "", durationWeeks: 4 });
-  const [batchForm, setBatchForm] = useState({ name: "", courseId: "", facultyId: "" });
+  const [batchForm, setBatchForm] = useState({ name: "", courseId: "", facultyId: "", startDate: "", endDate: "" });
   const [error, setError] = useState("");
 
   const loadCourses = () => adminApi.listCourses().then(setCourses).catch((e) => setError(e.message));
@@ -37,8 +37,10 @@ export default function CourseBatchManagement() {
       await adminApi.createBatch({
         courseId: batchForm.courseId, name: batchForm.name,
         facultyId: batchForm.facultyId || undefined,
+        startDate: batchForm.startDate || undefined,
+        endDate: batchForm.endDate || undefined,
       });
-      setBatchForm({ name: "", courseId: "", facultyId: "" });
+      setBatchForm({ name: "", courseId: "", facultyId: "", startDate: "", endDate: "" });
       loadBatches(selectedCourse || undefined);
     } catch (e) {
       setError((e as Error).message);
@@ -92,6 +94,14 @@ export default function CourseBatchManagement() {
             <option value="">Assign faculty (optional — defaults to you)</option>
             {faculty.map((f) => <option key={f.id} value={f.id}>{f.name} ({f.email})</option>)}
           </select>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Start Date</label>
+            <input type="date" className="border rounded-md px-3 py-2 w-full" value={batchForm.startDate} onChange={(e) => setBatchForm({ ...batchForm, startDate: e.target.value })} />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Expected End Date</label>
+            <input type="date" className="border rounded-md px-3 py-2 w-full" value={batchForm.endDate} onChange={(e) => setBatchForm({ ...batchForm, endDate: e.target.value })} />
+          </div>
         </div>
         <button onClick={createBatch} className="bg-slate-800 text-white px-4 py-2 rounded-md text-sm">Create Batch</button>
       </div>

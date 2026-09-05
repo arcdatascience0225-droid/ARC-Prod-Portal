@@ -1,10 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { dashboardApi, assessmentApi } from "../../api/studentApi";
+import { api } from "../../services/api";
 import type { Dashboard as DashboardType, AvailableAssessment } from "../../types";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+
+interface DashboardStats {
+  assessmentsTaken: number;
+  averageScore: number | null;
+  bestRank: number | null;
+  batchName: string | null;
+  courseName: string | null;
+  facultyName: string | null;
+  typeBreakdown: { type: string; averageScore: number; count: number }[];
+}
+
+const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4"];
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardType | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [assessments, setAssessments] = useState<AvailableAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,6 +27,7 @@ export default function Dashboard() {
   useEffect(() => {
     dashboardApi.get().then(setData).catch(() => setError("Failed to load dashboard")).finally(() => setLoading(false));
     assessmentApi.available().then(setAssessments).catch(() => {});
+    api.get<DashboardStats>("/api/v1/student/dashboard/stats").then((r) => setStats(r.data)).catch(() => {});
   }, []);
 
   if (loading) return <div className="text-gray-500">Loading dashboard...</div>;
@@ -25,10 +41,48 @@ export default function Dashboard() {
         <p className="text-gray-500">Here's what's happening with your learning journey.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Course Progress" value={`${data.progressPercent}%`} />
         <StatCard label="Attendance" value={`${data.attendancePercent}%`} />
+        <StatCard label="Assessments Taken" value={stats ? String(stats.assessmentsTaken) : "—"} />
+        <StatCard label="Average Score" value={stats?.averageScore != null ? `${stats.averageScore}%` : "—"} />
+        <StatCard label="Best Rank" value={stats?.bestRank != null ? `#${stats.bestRank}` : "—"} />
+        <StatCard label="Batch" value={stats?.batchName || "—"} small />
       </div>
+
+      {stats && (stats.courseName || stats.facultyName) && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-6 text-sm">
+          {stats.courseName && <div><span className="text-gray-400">Course: </span><span className="font-medium text-gray-700">{stats.courseName}</span></div>}
+          {stats.facultyName && <div><span className="text-gray-400">Faculty: </span><span className="font-medium text-gray-700">{stats.facultyName}</span></div>}
+        </div>
+      )}
+
+      {stats && stats.typeBreakdown.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="font-semibold text-gray-800 mb-3">Performance by Assessment Type</h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={stats.typeBreakdown}
+                  dataKey="averageScore"
+                  nameKey="type"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  label={(entry) => `${entry.type}: ${entry.averageScore}%`}
+                >
+                  {stats.typeBreakdown.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white rounded-xl border border-gray-200 p-5">
@@ -72,11 +126,11 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-3xl font-bold text-primary mt-1">{value}</p>
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className={`${small ? "text-lg" : "text-2xl"} font-bold text-primary mt-1 truncate`}>{value}</p>
     </div>
   );
 }

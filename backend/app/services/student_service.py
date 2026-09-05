@@ -395,6 +395,64 @@ class StudentService:
             })
         return out
 
+    def get_dashboard_stats(self, user_id: str) -> dict:
+        """Full statistics for the student dashboard: totals, average score,
+        best rank, batch/faculty context, and a per-type score breakdown
+        (for a pie/bar chart)."""
+        from app.models.assessment import Result, Assessment as AssessmentModel
+        from app.models.course import BatchStudent, Batch, Course
+        from app.models.user import User
+
+        results = (
+            self.db.query(Result, AssessmentModel)
+            .join(AssessmentModel, AssessmentModel.id == Result.assessment_id)
+            .filter(Result.user_id == user_id, Result.status == "completed")
+            .all()
+        )
+        scores = [r.score for r, a in results if r.score is not None]
+        avg_score = round(sum(scores) / len(scores), 1) if scores else None
+
+        best_rank = None
+        for r, a in results:
+            rank, _pct = self.repo.compute_rank_and_percentile(str(a.id), user_id, r.score)
+            if rank is not None and (best_rank is None or rank < best_rank):
+                best_rank = rank
+
+        # Score breakdown by assessment type, for a pie/bar chart.
+        by_type: dict = {}
+        for r, a in results:
+            if r.score is None:
+                continue
+            by_type.setdefault(a.type, []).append(r.score)
+        type_breakdown = [
+            {"type": t, "averageScore": round(sum(v) / len(v), 1), "count": len(v)}
+            for t, v in by_type.items()
+        ]
+
+        batch_name = course_name = faculty_name = None
+        link = self.db.query(BatchStudent).filter(BatchStudent.user_id == user_id).first()
+        if link:
+            batch = self.db.query(Batch).filter(Batch.id == link.batch_id).first()
+            if batch:
+                batch_name = batch.name
+                if batch.course_id:
+                    course = self.db.query(Course).filter(Course.id == batch.course_id).first()
+                    course_name = course.name if course else None
+                faculty_id = batch.faculty_id or batch.trainer_id
+                if faculty_id:
+                    faculty = self.db.query(User).filter(User.id == faculty_id).first()
+                    faculty_name = faculty.name if faculty else None
+
+        return {
+            "assessmentsTaken": len(results),
+            "averageScore": avg_score,
+            "bestRank": best_rank,
+            "batchName": batch_name,
+            "courseName": course_name,
+            "facultyName": faculty_name,
+            "typeBreakdown": type_breakdown,
+        }
+
     def get_assessment_history(self, user_id: str) -> list[sc.AssessmentHistoryItem]:
         rows = self.repo.list_assessment_history(user_id)
         from app.models.assessment import Question, Assessment as AssessmentModel

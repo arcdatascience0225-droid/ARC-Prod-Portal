@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { aiAssistantApi } from "../../api/aiAssistantApi";
+import { api } from "../../services/api";
 
 export default function ResumeBuilder() {
   const [profile, setProfile] = useState({ name: "", education: "", skills: "" });
@@ -8,6 +9,7 @@ export default function ResumeBuilder() {
   const [resumeText, setResumeText] = useState("");
   const [suggestions, setSuggestions] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const [error, setError] = useState("");
 
   const generate = async () => {
@@ -40,6 +42,24 @@ export default function ResumeBuilder() {
     }
   };
 
+  const downloadResume = async (format: "pdf" | "docx") => {
+    if (!resumeText) return;
+    setExporting(format);
+    try {
+      const res = await api.post(`/api/v1/ai/resume/export/${format}`, { resumeText }, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `resume.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(`Failed to export as ${format.toUpperCase()}.`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold text-slate-800">AI Resume Builder</h1>
@@ -60,9 +80,19 @@ export default function ResumeBuilder() {
         <div className="bg-white rounded-xl shadow p-5 space-y-3">
           <h2 className="font-semibold text-slate-700">Generated Resume</h2>
           <textarea className="border rounded-md px-3 py-2 w-full font-mono text-xs" rows={14} value={resumeText} onChange={(e) => setResumeText(e.target.value)} />
-          <button onClick={improve} disabled={loading} className="bg-slate-100 text-slate-800 px-4 py-2 rounded-md text-sm">
-            Get Improvement Suggestions
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={improve} disabled={loading} className="bg-slate-100 text-slate-800 px-4 py-2 rounded-md text-sm">
+              Get Improvement Suggestions
+            </button>
+            <button onClick={() => downloadResume("pdf")} disabled={exporting !== null}
+              className="bg-red-600 text-white px-4 py-2 rounded-md text-sm disabled:opacity-50">
+              {exporting === "pdf" ? "Exporting…" : "⬇ Download PDF"}
+            </button>
+            <button onClick={() => downloadResume("docx")} disabled={exporting !== null}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm disabled:opacity-50">
+              {exporting === "docx" ? "Exporting…" : "⬇ Download DOCX"}
+            </button>
+          </div>
         </div>
       )}
 

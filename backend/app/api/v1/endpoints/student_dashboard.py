@@ -16,3 +16,11 @@ def get_dashboard(
 ):
     """STU-DB-001..007: Welcome, progress %, attendance %, upcoming assessments, notifications."""
     return StudentService(db).get_dashboard(current_user.id)
+
+
+@router.get("/stats", summary="Full statistical dashboard: assessments taken, average score, best rank, batch, type breakdown")
+def get_dashboard_stats(
+    current_user: CurrentUser = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    return StudentService(db).get_dashboard_stats(current_user.id)

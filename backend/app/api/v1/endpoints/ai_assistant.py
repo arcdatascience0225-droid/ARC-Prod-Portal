@@ -28,6 +28,62 @@ def improve_resume(payload: schemas.ResumeImproveRequest, db: Session = Depends(
     return {"suggestions": text, "tokensUsed": tokens}
 
 
+@router.post("/resume/export/pdf", summary="Export resume text as a downloadable PDF")
+def export_resume_pdf(payload: dict, current_user=Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import inch
+    import io
+
+    resume_text = payload.get("resumeText", "")
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.7 * inch, bottomMargin=0.7 * inch)
+    styles = getSampleStyleSheet()
+    body_style = styles["BodyText"]
+    body_style.leading = 14
+
+    story = []
+    for line in resume_text.split("\n"):
+        if not line.strip():
+            story.append(Spacer(1, 8))
+            continue
+        # Escape characters reportlab's mini-markup would otherwise choke on.
+        safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(safe_line, body_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer, media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=resume.pdf"},
+    )
+
+
+@router.post("/resume/export/docx", summary="Export resume text as a downloadable Word document")
+def export_resume_docx(payload: dict, current_user=Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from docx import Document
+    import io
+
+    resume_text = payload.get("resumeText", "")
+    doc = Document()
+    for line in resume_text.split("\n"):
+        if not line.strip():
+            doc.add_paragraph("")
+            continue
+        doc.add_paragraph(line)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=resume.docx"},
+    )
+
+
 @router.post("/career-guidance")
 def career_guidance(payload: schemas.CareerGuidanceRequest, db: Session = Depends(get_db),
                      current_user=Depends(get_current_user)):

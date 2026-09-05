@@ -66,6 +66,65 @@ def get_history_batches(current_user: CurrentUser = Depends(require_student), db
     return StudentService(db).get_batch_summary(current_user.id)
 
 
+@router.get("/history/{result_id}/review")
+def review_attempt(
+    result_id: str,
+    current_user: CurrentUser = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    """Full review of a completed attempt: every question, what the
+    student answered, and the correct answer (for MCQ) — used when a
+    student clicks a row in Assessment History to see what they actually
+    submitted."""
+    from app.models.assessment import StudentAnswer
+
+    result = db.query(Result).filter(Result.id == result_id, Result.user_id == current_user.id).first()
+    if not result:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    answers = db.query(StudentAnswer).filter(StudentAnswer.result_id == result_id).all()
+    answers_by_qid = {str(a.question_id): a for a in answers}
+
+    questions = db.query(Question).filter(Question.assessment_id == result.assessment_id).all()
+    # Bank-sourced questions (assessment_id is null on the Question row, but
+    # they're attached via the assessment's question_ids list) also need
+    # to be picked up so nothing is silently missing from the review.
+    from app.models.assessment import Assessment as AssessmentModel
+    assessment = db.query(AssessmentModel).filter(AssessmentModel.id == result.assessment_id).first()
+    if assessment and assessment.question_ids:
+        have_ids = {str(q.id) for q in questions}
+        missing_ids = [qid for qid in assessment.question_ids if str(qid) not in have_ids]
+        if missing_ids:
+            questions += db.query(Question).filter(Question.id.in_(missing_ids)).all()
+
+    review = []
+    for q in questions:
+        ans = answers_by_qid.get(str(q.id))
+        data = q.data or {}
+        ans_data = ans.answer_data or {} if ans else {}
+        student_answer = ans_data.get("selected_option") if q.type == "mcq" else ans_data.get("answer_text")
+        review.append({
+            "questionId": str(q.id),
+            "questionText": q.question_text,
+            "type": q.type,
+            "marks": q.marks,
+            "options": data.get("options") if q.type == "mcq" else None,
+            "correctOption": data.get("correctOption") if q.type == "mcq" else None,
+            "studentAnswer": student_answer,
+            "isCorrect": ans.is_correct if ans else None,
+            "marksAwarded": ans.marks_awarded if ans else 0,
+        })
+
+    return {
+        "resultId": str(result.id),
+        "score": result.score,
+        "status": result.status,
+        "submittedAt": result.submitted_at,
+        "questions": review,
+    }
+
+
 SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "snapshots")
 
 
