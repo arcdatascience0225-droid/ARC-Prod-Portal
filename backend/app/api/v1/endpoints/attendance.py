@@ -6,11 +6,20 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import faculty_or_trainer, require_roles, CurrentUser
+from app.utils.auth import require_student, CurrentUser as StudentCurrentUser
 from app.db.session import get_db
 from app.schemas.attendance import AttendanceMarkRequest, AttendanceOut, AttendanceFaceRecognitionHook
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
+
+
+@router.get("/me", response_model=List[AttendanceOut], summary="My own attendance history (student)")
+def get_my_attendance(
+    current_user: StudentCurrentUser = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    return AttendanceService(db).get_student_history(current_user.id)
 
 
 @router.post("", response_model=List[AttendanceOut], summary="Mark/update attendance for a batch (FAC-002)")
