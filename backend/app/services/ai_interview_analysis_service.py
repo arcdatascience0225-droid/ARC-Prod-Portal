@@ -29,7 +29,7 @@ class AIInterviewAnalysisService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = MockInterviewRepository(db)
-        self.client = get_ai_client()
+        self.client = get_ai_client(force_provider="groq")  # student-facing — always free-tier Groq
 
     def analyze(self, mock_interview_id: UUID, responses: list[dict]):
         transcript = "\n".join(

@@ -7,8 +7,16 @@ needs to change.
 from app.core.config import settings
 
 
-def get_ai_client():
-    if settings.AI_PROVIDER.lower() == "groq":
+def get_ai_client(force_provider: str | None = None):
+    """force_provider overrides the global AI_PROVIDER setting for a
+    specific call site — used to keep all STUDENT-facing AI features
+    (auto-grading, career assistant, resume builder, mock interview
+    feedback) on Groq (free) regardless of what faculty-facing features
+    (Question Bank generation) are configured to use. This is a real-money
+    cost control, not a quality preference — never remove it just because
+    AI_PROVIDER is set to "gemini" for faculty."""
+    provider = (force_provider or settings.AI_PROVIDER).lower()
+    if provider == "groq":
         from app.services.groq_service import GroqService
         return GroqService()
     from app.services.gemini_service import GeminiService

@@ -25,15 +25,40 @@ function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+interface LectureLogEntry {
+  id: string; date: string; topic: string; notes: string | null; facultyName: string;
+}
+
 export default function BatchDetailPage() {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
   const [detail, setDetail] = useState<BatchDetail | null>(null);
+  const [logs, setLogs] = useState<LectureLogEntry[]>([]);
+  const [logForm, setLogForm] = useState({ topic: "", notes: "" });
+  const [savingLog, setSavingLog] = useState(false);
+
+  const loadLogs = () => {
+    if (!batchId) return;
+    api.get<LectureLogEntry[]>(`/api/v1/faculty/batches/${batchId}/lecture-log`).then((r) => setLogs(r.data));
+  };
 
   useEffect(() => {
     if (!batchId) return;
     api.get<BatchDetail>(`/api/v1/faculty/batches/${batchId}/detail`).then((r) => setDetail(r.data));
+    loadLogs();
   }, [batchId]);
+
+  const submitLog = async () => {
+    if (!batchId || !logForm.topic.trim()) return;
+    setSavingLog(true);
+    try {
+      await api.post(`/api/v1/faculty/batches/${batchId}/lecture-log`, logForm);
+      setLogForm({ topic: "", notes: "" });
+      loadLogs();
+    } finally {
+      setSavingLog(false);
+    }
+  };
 
   const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
 
@@ -64,6 +89,50 @@ export default function BatchDetailPage() {
         <StatCard label="Total Students" value={detail.studentsCount} />
         <StatCard label="Active" value={detail.activeStudents} />
         <StatCard label="Inactive" value={detail.inactiveStudents} />
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-800">Log what you taught today</h2>
+        </div>
+        <div className="p-4 space-y-3">
+          <input
+            className="border rounded-md px-3 py-2 w-full text-sm"
+            placeholder="Topic covered (e.g. 'React hooks — useState, useEffect')"
+            value={logForm.topic}
+            onChange={(e) => setLogForm({ ...logForm, topic: e.target.value })}
+          />
+          <textarea
+            className="border rounded-md px-3 py-2 w-full text-sm"
+            placeholder="Notes (optional) — what was covered in detail, examples used, etc."
+            rows={2}
+            value={logForm.notes}
+            onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
+          />
+          <button
+            onClick={submitLog}
+            disabled={!logForm.topic.trim() || savingLog}
+            className="bg-slate-800 text-white px-4 py-2 rounded-md text-sm disabled:opacity-40"
+          >
+            {savingLog ? "Saving…" : "✓ Log today's lecture"}
+          </button>
+
+          {logs.length > 0 && (
+            <div className="pt-2 space-y-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase">History</p>
+              {logs.map((l) => (
+                <div key={l.id} className="border border-slate-100 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-800">{l.topic}</p>
+                    <p className="text-xs text-slate-400">{new Date(l.date).toLocaleDateString()}</p>
+                  </div>
+                  {l.notes && <p className="text-xs text-slate-500 mt-1">{l.notes}</p>}
+                  <p className="text-[11px] text-slate-400 mt-1">by {l.facultyName}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

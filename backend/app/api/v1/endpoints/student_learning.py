@@ -34,7 +34,7 @@ def list_lectures(
     db: Session = Depends(get_db),
 ):
     """STU-LR-002: Recorded lectures/notes."""
-    return StudentService(db).list_lectures(syllabus_item_id)
+    return StudentService(db).list_lectures(current_user.id, syllabus_item_id)
 
 
 @router.get("/assignments", response_model=list[sc.AssignmentOut])
@@ -61,10 +61,10 @@ def list_practice_questions(
     db: Session = Depends(get_db),
 ):
     """STU-LR-004: Practice questions bank."""
-    return StudentService(db).list_practice_questions(topic, difficulty)
+    return StudentService(db).list_practice_questions(current_user.id, topic, difficulty)
 
 
-@router.get("/daily-challenge", response_model=sc.DailyChallengeOut)
+@router.get("/daily-challenge", response_model=Optional[sc.DailyChallengeOut])
 def get_daily_challenge(current_user: CurrentUser = Depends(require_student), db: Session = Depends(get_db)):
     """STU-LR-004: Today's daily challenge."""
     return StudentService(db).get_daily_challenge(current_user.id)

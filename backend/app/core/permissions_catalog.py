@@ -16,8 +16,6 @@ PERMISSIONS_CATALOG = [
 
     {"path": "/student/dashboard", "label": "Dashboard", "group": "Learning",
      "defaultRoles": ["student"]},
-    {"path": "/student/profile", "label": "My Profile", "group": "Learning",
-     "defaultRoles": ["student"]},
     {"path": "/student/learning", "label": "Learning", "group": "Learning",
      "defaultRoles": ["student"]},
     {"path": "/student/assignments", "label": "Assignments", "group": "Learning",

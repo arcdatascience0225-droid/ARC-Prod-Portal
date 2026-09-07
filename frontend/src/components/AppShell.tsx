@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { api } from "../services/api";
 
 type IconProps = { className?: string };
 const icon = (path: React.ReactNode) => ({ className = "h-5 w-5" }: IconProps) => (
@@ -58,7 +59,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Learning",
     items: [
       { to: "/student/dashboard",         label: "Dashboard",          roles: ["student"], icon: Icons.dashboard },
-      { to: "/student/profile",           label: "My Profile",         roles: ["student"], icon: Icons.users },
       { to: "/student/learning",          label: "Learning",           roles: ["student"], icon: Icons.book },
       { to: "/student/assignments",       label: "Assignments",        roles: ["student"], icon: Icons.clipboard },
       { to: "/student/coding-lab",        label: "Coding Lab",         roles: ["student"], icon: Icons.code },
@@ -216,11 +216,37 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("arc-nav-collapsed") === "1");
+  const [studentContext, setStudentContext] = useState<{ batchName?: string | null; facultyName?: string | null } | null>(null);
+  const [notifications, setNotifications] = useState<{ recipientId: string; title: string; message?: string; isRead: boolean; createdAt: string }[]>([]);
 
-  const toggleCollapsed = () => {
-    setCollapsed((v) => { localStorage.setItem("arc-nav-collapsed", !v ? "1" : "0"); return !v; });
+  const isStudentUser = user?.role === "student";
+
+  useEffect(() => {
+    if (!isStudentUser) return;
+    api.get("/api/v1/student/profile")
+      .then((r) => setStudentContext({ batchName: r.data.batchName, facultyName: r.data.facultyName }))
+      .catch(() => {});
+  }, [isStudentUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get("/api/v1/notifications/mine")
+      .then((r) => setNotifications(r.data))
+      .catch(() => {});
+  }, [user?.id]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const markNotifRead = async (recipientId: string) => {
+    setNotifications((prev) => prev.map((n) => (n.recipientId === recipientId ? { ...n, isRead: true } : n)));
+    try {
+      await api.put(`/api/v1/notifications/mine/${recipientId}/read`);
+    } catch {
+      // a missed mark-as-read isn't worth surfacing an error for
+    }
   };
 
   const isPowerRole = user ? POWER_ROLES.includes(user.role) : false;
@@ -283,13 +309,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <p className="truncate text-[11px] text-slate-400">{user ? ROLE_LABELS[user.role] : ""}</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10">
-          <Icons.logout className="h-4 w-4" />
-          <span className={collapsed ? "md:hidden" : ""}>Sign out</span>
-        </button>
-        <button onClick={toggleCollapsed} className="mt-2 hidden w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white md:flex">
-          {collapsed ? <Icons.chevronsRight className="h-4 w-4" /> : <><Icons.chevronsLeft className="h-4 w-4" /> Collapse</>}
-        </button>
       </div>
     </>
   );
@@ -322,6 +341,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <p className="truncate font-display text-sm font-bold text-ink-900 dark:text-white">{brandTitle}</p>
               <p className="hidden truncate text-xs text-slate-400 dark:text-slate-500 sm:block">
                 Signed in as <span className="font-medium capitalize">{user ? ROLE_LABELS[user.role] : ""}</span>
+                {isStudentUser && studentContext?.batchName && (
+                  <> · Batch: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.batchName}</span></>
+                )}
+                {isStudentUser && studentContext?.facultyName && (
+                  <> · Faculty: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.facultyName}</span></>
+                )}
               </p>
             </div>
           </div>
@@ -329,6 +354,37 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <button onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
               {theme === "dark" ? <Icons.sun className="h-4 w-4" /> : <Icons.moon className="h-4 w-4" />}
             </button>
+
+            <div className="relative">
+              <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                <Icons.bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900" onMouseLeave={() => setNotifOpen(false)}>
+                  <p className="px-3 py-2 text-xs font-semibold uppercase text-slate-400 dark:text-slate-500">Notifications</p>
+                  {notifications.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-slate-400 dark:text-slate-500">You're all caught up! 🎉</p>
+                  ) : (
+                    notifications.slice(0, 10).map((n) => (
+                      <button
+                        key={n.recipientId}
+                        onClick={() => markNotifRead(n.recipientId)}
+                        className={`block w-full border-t border-slate-100 px-3 py-2.5 text-left dark:border-slate-800 ${n.isRead ? "" : "bg-brand-50 dark:bg-brand-950/40"}`}
+                      >
+                        <p className="text-sm font-medium text-ink-900 dark:text-slate-100">{n.title}</p>
+                        {n.message && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{n.message}</p>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="relative">
               <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-[11px] font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-200">
@@ -337,7 +393,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 <span className="hidden sm:inline">{user?.name}</span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900" onMouseLeave={() => setMenuOpen(false)}>
+                <div className="absolute right-0 z-10 mt-2 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900" onMouseLeave={() => setMenuOpen(false)}>
+                  {isStudentUser && (
+                    <button onClick={() => { setMenuOpen(false); navigate("/student/profile"); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                      <Icons.users className="h-4 w-4" /> My Profile
+                    </button>
+                  )}
                   <button onClick={handleLogout} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
                     <Icons.logout className="h-4 w-4" /> Sign out
                   </button>

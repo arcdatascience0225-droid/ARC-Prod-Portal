@@ -24,7 +24,7 @@ class AIAssistantService:
     def __init__(self, db: Session):
         self.db = db
         self.repo = AIRepo(db)
-        self.ai = get_ai_client()
+        self.ai = get_ai_client(force_provider="groq")  # student-facing — always free-tier Groq
         self.analytics = AnalyticsService(db)
 
     def _log(self, user_id, module, tokens):

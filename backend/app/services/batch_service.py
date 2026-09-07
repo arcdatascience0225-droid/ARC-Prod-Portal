@@ -293,3 +293,27 @@ class BatchService:
             batchTime=getattr(batch, "batch_time", None),
             createdAt=batch.created_at, studentCount=self.repo.student_count(batch.id),
         )
+
+    def create_lecture_log(self, batch_id: UUID, faculty_id: UUID, topic: str, notes: str | None) -> dict:
+        from app.models.student_extras import LectureLog
+        log = LectureLog(batch_id=batch_id, faculty_id=faculty_id, topic=topic, notes=notes)
+        self.db.add(log)
+        self.db.commit()
+        self.db.refresh(log)
+        return {"id": log.id, "date": log.date, "topic": log.topic, "notes": log.notes}
+
+    def list_lecture_log(self, batch_id: UUID) -> list[dict]:
+        from app.models.student_extras import LectureLog
+        from app.models.shared_refs import User
+        rows = (
+            self.db.query(LectureLog, User)
+            .join(User, User.id == LectureLog.faculty_id)
+            .filter(LectureLog.batch_id == batch_id)
+            .order_by(LectureLog.date.desc())
+            .all()
+        )
+        return [
+            {"id": log.id, "date": log.date, "topic": log.topic, "notes": log.notes, "facultyName": user.name}
+            for log, user in rows
+        ]
+

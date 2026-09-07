@@ -121,3 +121,14 @@ class CodeReview(Base, BaseModelMixin):
     review_text = Column(Text)
     suggestions = Column(JSONB)
     quality_score = Column(Float)
+
+
+# ---------- Faculty's daily "what I taught today" log, per batch ----------
+class LectureLog(Base, BaseModelMixin):
+    __tablename__ = "lecture_logs"
+
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id"), nullable=False, index=True)
+    faculty_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    topic = Column(String(255), nullable=False)
+    notes = Column(Text)

@@ -95,3 +95,27 @@ def batch_detail(
     current_user: CurrentUser = Depends(faculty_or_trainer),
 ):
     return BatchService(db).batch_detail(batch_id)
+
+
+@router.post("/batches/{batch_id}/lecture-log", summary="Log what was taught in a batch today")
+def create_lecture_log(
+    batch_id: UUID,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(faculty_or_trainer),
+):
+    """{"topic": "...", "notes": "..." (optional)}"""
+    from fastapi import HTTPException
+    topic = (payload.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+    return BatchService(db).create_lecture_log(batch_id, current_user.id, topic, payload.get("notes"))
+
+
+@router.get("/batches/{batch_id}/lecture-log", summary="History of what's been taught in a batch")
+def list_lecture_log(
+    batch_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(faculty_or_trainer),
+):
+    return BatchService(db).list_lecture_log(batch_id)

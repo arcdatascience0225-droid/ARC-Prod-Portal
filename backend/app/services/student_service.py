@@ -82,6 +82,12 @@ class StudentService:
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        if not self._has_batch(user_id):
+            return sc.DashboardResponse(
+                welcome_name=user["name"], progress_percent=0, attendance_percent=0,
+                upcoming_assessments=[], recent_notifications=[],
+            )
+
         progress = self.repo.get_progress_percent(user_id)
         attendance = self.repo.get_attendance_percent(user_id)
         upcoming = self.repo.get_upcoming_assessments(user_id)
@@ -150,7 +156,16 @@ class StudentService:
             raise HTTPException(status_code=404, detail="Certificate not found")
 
     # ---------- Learning ----------
+    def _has_batch(self, user_id: str) -> bool:
+        """An unassigned student (self-registered, not yet placed in a batch)
+        must see completely empty pages everywhere — not just on Available
+        Assessments. Every content-listing method below checks this first."""
+        from app.repositories.batch_repository import BatchRepository
+        return len(BatchRepository(self.db).batch_ids_for_student(user_id)) > 0
+
     def get_syllabus(self, user_id: str) -> list[sc.SyllabusItemOut]:
+        if not self._has_batch(user_id):
+            return []
         return [sc.SyllabusItemOut.model_validate(i) for i in self.repo.list_syllabus_with_progress(user_id)]
 
     def update_syllabus_progress(self, user_id: str, syllabus_item_id: str, status: str) -> sc.SyllabusItemOut:
@@ -161,10 +176,14 @@ class StudentService:
             id=syllabus_item_id, title="", description=None, module=None, order_index=0, status=prog.status,
         )
 
-    def list_lectures(self, syllabus_item_id: Optional[str]) -> list[sc.LectureOut]:
+    def list_lectures(self, user_id: str, syllabus_item_id: Optional[str]) -> list[sc.LectureOut]:
+        if not self._has_batch(user_id):
+            return []
         return [sc.LectureOut.model_validate(l) for l in self.repo.list_lectures(syllabus_item_id)]
 
     def list_assignments(self, user_id: str) -> list[sc.AssignmentOut]:
+        if not self._has_batch(user_id):
+            return []
         return [sc.AssignmentOut.model_validate(a) for a in self.repo.list_assignments_for_student(user_id)]
 
     def submit_assignment(self, user_id: str, payload: sc.AssignmentSubmissionCreate) -> sc.AssignmentSubmissionOut:
@@ -177,10 +196,14 @@ class StudentService:
         sub = self.repo.create_submission(user_id, {**data, "assignment_id": payload.assignment_id})
         return sc.AssignmentSubmissionOut.model_validate(sub)
 
-    def list_practice_questions(self, topic: Optional[str], difficulty: Optional[str]) -> list[sc.PracticeQuestionOut]:
+    def list_practice_questions(self, user_id: str, topic: Optional[str], difficulty: Optional[str]) -> list[sc.PracticeQuestionOut]:
+        if not self._has_batch(user_id):
+            return []
         return [sc.PracticeQuestionOut.model_validate(q) for q in self.repo.list_practice_questions(topic, difficulty)]
 
-    def get_daily_challenge(self, user_id: str) -> sc.DailyChallengeOut:
+    def get_daily_challenge(self, user_id: str) -> Optional[sc.DailyChallengeOut]:
+        if not self._has_batch(user_id):
+            return None
         today = datetime.now(timezone.utc)
         challenge = self.repo.get_today_challenge(today)
         if not challenge:
@@ -332,7 +355,7 @@ class StudentService:
                 # subjective / coding / sql / stats / ml / nlp -> AI evaluation
                 correct_ref = (q.get("data") or {}).get("reference_answer")
                 try:
-                    ai_client = get_ai_client()
+                    ai_client = get_ai_client(force_provider="groq")  # student-facing (auto-grading) — always free-tier Groq
                     score, feedback, tokens = await ai_client.evaluate_answer(
                         question_text=q["question_text"],
                         question_type=q["type"],
