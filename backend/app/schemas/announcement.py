@@ -47,13 +47,17 @@ class AnnouncementOut(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     studentId: UUID
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=0, default="")
+    attachmentUrl: Optional[str] = None
+    attachmentType: Optional[str] = None  # image | file | voice
 
 
 class StudentChatMessageCreate(BaseModel):
     """Student -> faculty direction."""
     facultyId: UUID
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=0, default="")
+    attachmentUrl: Optional[str] = None
+    attachmentType: Optional[str] = None
 
 
 class ChatMessageOut(BaseModel):
@@ -67,4 +71,6 @@ class ChatMessageOut(BaseModel):
     sentByStudent: bool = False
     message: str
     response: Optional[str] = None
+    attachmentUrl: Optional[str] = None
+    attachmentType: Optional[str] = None
     createdAt: datetime

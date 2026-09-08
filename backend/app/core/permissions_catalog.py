@@ -26,6 +26,8 @@ PERMISSIONS_CATALOG = [
      "defaultRoles": ["student"]},
     {"path": "/student/mock-interview", "label": "Mock Interview", "group": "Learning",
      "defaultRoles": ["student"]},
+    {"path": "/student/chat", "label": "Chat with Faculty", "group": "Learning",
+     "defaultRoles": ["student"]},
 
     {"path": "/student/jobs/recommended", "label": "Recommended Jobs", "group": "Jobs & Career",
      "defaultRoles": ["student"]},

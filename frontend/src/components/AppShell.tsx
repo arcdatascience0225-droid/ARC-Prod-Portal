@@ -64,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/student/coding-lab",        label: "Coding Lab",         roles: ["student"], icon: Icons.code },
       { to: "/student/assessments/history", label: "Assessment History", roles: ["student"], icon: Icons.chart },
       { to: "/student/mock-interview",    label: "Mock Interview",     roles: ["student"], icon: Icons.chat },
+      { to: "/student/chat",              label: "Chat with Faculty",  roles: ["student"], icon: Icons.chat },
     ],
   },
   {
@@ -241,6 +242,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
   };
 
+  const toggleCollapsed = () => {
+    setCollapsed((v) => { localStorage.setItem("arc-nav-collapsed", !v ? "1" : "0"); return !v; });
+  };
+
   const isPowerRole = user ? POWER_ROLES.includes(user.role) : false;
   const isStudent = user?.role === "student";
   const brandTitle = isStudent ? "ARC Students Portal" : "ARC Technologies & Institutions";
@@ -315,6 +320,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => setMobileNavOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden">
               <Icons.menu className="h-4 w-4" />
+            </button>
+            <button onClick={toggleCollapsed} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 md:flex">
+              {collapsed ? <Icons.chevronsRight className="h-4 w-4" /> : <Icons.chevronsLeft className="h-4 w-4" />}
             </button>
             <div className="min-w-0">
               <p className="truncate font-display text-sm font-bold text-ink-900 dark:text-white">{brandTitle}</p>

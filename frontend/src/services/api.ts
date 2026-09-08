@@ -18,7 +18,7 @@ const loadingListeners = new Set<(active: boolean) => void>();
 
 export function subscribeToLoading(listener: (active: boolean) => void) {
   loadingListeners.add(listener);
-  return () => loadingListeners.delete(listener);
+  return () => { loadingListeners.delete(listener); };
 }
 
 function notifyLoading() {

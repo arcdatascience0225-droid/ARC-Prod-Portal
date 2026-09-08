@@ -126,6 +126,18 @@ class ChatRepository:
             .all()
         )
 
+    def last_message(self, faculty_id: UUID, student_id: UUID):
+        """Most recent message in a thread, for conversation-list previews."""
+        return (
+            self.db.query(ChatHistory)
+            .filter(
+                ChatHistory.faculty_id == faculty_id,
+                ChatHistory.student_id == student_id,
+            )
+            .order_by(ChatHistory.created_at.desc())
+            .first()
+        )
+
     def faculty_ids_for_student(self, student_id: UUID) -> List[UUID]:
         """Faculty this student already has a thread with."""
         rows = (

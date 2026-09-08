@@ -30,6 +30,7 @@ import CodingLab from "./pages/student/CodingLab";
 import AssessmentAttempt from "./pages/student/AssessmentAttempt";
 import AssessmentHistory from "./pages/student/AssessmentHistory";
 import MockInterviewTakePage from "./pages/student/MockInterviewTake";
+import StudentChatPage from "./pages/student/Chat";
 import RecommendedJobsPage from "./pages/student/jobs/RecommendedJobsPage";
 import ApplicationTrackerPage from "./pages/student/jobs/ApplicationTrackerPage";
 import StudentOffersPage from "./pages/student/jobs/OffersPage";
@@ -146,6 +147,7 @@ const App: React.FC = () => (
           <Route path="/student/coding-lab/:codingQuestionId" element={gate(STUDENT_ROLES, <CodingLab />)} />
           <Route path="/student/assessments/history" element={gate(STUDENT_ROLES, <AssessmentHistory />)} />
           <Route path="/student/mock-interview" element={gate(STUDENT_ROLES, <MockInterviewTakePage />)} />
+          <Route path="/student/chat" element={gate(STUDENT_ROLES, <StudentChatPage />)} />
           <Route path="/student/jobs/recommended" element={gate(STUDENT_ROLES, <RecommendedJobsPage />)} />
           <Route path="/student/jobs/applications" element={gate(STUDENT_ROLES, <ApplicationTrackerPage />)} />
           <Route path="/student/jobs/offers" element={gate(STUDENT_ROLES, <StudentOffersPage />)} />

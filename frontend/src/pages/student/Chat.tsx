@@ -3,7 +3,7 @@ import { api } from "../../services/api";
 import ArcLoader from "../../components/ArcLoader";
 
 interface Conversation {
-  studentId: string; studentName: string; studentEmail: string;
+  facultyId: string; facultyName: string; facultyEmail: string;
   lastMessage: string | null; lastMessageAt: string | null;
 }
 
@@ -12,7 +12,7 @@ interface ChatMsg {
   attachmentUrl?: string | null; attachmentType?: string | null; createdAt: string;
 }
 
-export default function ChatPage() {
+export default function StudentChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [active, setActive] = useState<Conversation | null>(null);
@@ -27,7 +27,7 @@ export default function ChatPage() {
 
   const loadConversations = () => {
     setLoadingConvos(true);
-    api.get<Conversation[]>("/api/v1/chat/conversations").then((r) => setConversations(r.data)).finally(() => setLoadingConvos(false));
+    api.get<Conversation[]>("/api/v1/chat/my-conversations").then((r) => setConversations(r.data)).finally(() => setLoadingConvos(false));
   };
 
   useEffect(() => { loadConversations(); }, []);
@@ -35,7 +35,7 @@ export default function ChatPage() {
   const openConversation = async (c: Conversation) => {
     setActive(c);
     setThread([]);
-    const r = await api.get<ChatMsg[]>(`/api/v1/chat/students/${c.studentId}/messages`);
+    const r = await api.get<ChatMsg[]>(`/api/v1/chat/faculty/${c.facultyId}/messages`);
     setThread(r.data);
   };
 
@@ -47,10 +47,10 @@ export default function ChatPage() {
     if (!active || (!message.trim() && !attachmentUrl)) return;
     const text = message;
     setMessage("");
-    await api.post(`/api/v1/chat/students/${active.studentId}/messages`, {
-      studentId: active.studentId, message: text, attachmentUrl, attachmentType,
+    await api.post(`/api/v1/chat/faculty/${active.facultyId}/messages`, {
+      facultyId: active.facultyId, message: text, attachmentUrl, attachmentType,
     });
-    const r = await api.get<ChatMsg[]>(`/api/v1/chat/students/${active.studentId}/messages`);
+    const r = await api.get<ChatMsg[]>(`/api/v1/chat/faculty/${active.facultyId}/messages`);
     setThread(r.data);
     loadConversations();
   };
@@ -99,25 +99,25 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-semibold text-slate-800 mb-6">Chat with Students</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">Chat with Faculty</h1>
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex" style={{ height: "70vh" }}>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex" style={{ height: "70vh" }}>
         {/* Conversation list */}
-        <div className="w-72 border-r border-slate-100 overflow-y-auto shrink-0">
+        <div className="w-64 border-r border-gray-100 overflow-y-auto shrink-0">
           {loadingConvos ? (
             <ArcLoader label="Loading conversations" />
           ) : conversations.length === 0 ? (
-            <p className="text-sm text-slate-400 p-4">No students in your batches yet.</p>
+            <p className="text-sm text-gray-400 p-4">No faculty assigned yet.</p>
           ) : (
             conversations.map((c) => (
               <button
-                key={c.studentId}
+                key={c.facultyId}
                 onClick={() => openConversation(c)}
-                className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 ${active?.studentId === c.studentId ? "bg-indigo-50" : ""}`}
+                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${active?.facultyId === c.facultyId ? "bg-primary/5" : ""}`}
               >
-                <p className="text-sm font-medium text-slate-800 truncate">{c.studentName}</p>
-                <p className="text-xs text-slate-400 truncate">{c.lastMessage || "No messages yet"}</p>
+                <p className="text-sm font-medium text-gray-800 truncate">{c.facultyName}</p>
+                <p className="text-xs text-gray-400 truncate">{c.lastMessage || "No messages yet"}</p>
               </button>
             ))
           )}
@@ -126,19 +126,19 @@ export default function ChatPage() {
         {/* Thread */}
         <div className="flex-1 flex flex-col">
           {!active ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
-              Select a student to start chatting
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+              Select your faculty to start chatting
             </div>
           ) : (
             <>
-              <div className="px-4 py-3 border-b border-slate-100">
-                <p className="font-medium text-slate-800">{active.studentName}</p>
-                <p className="text-xs text-slate-400">{active.studentEmail}</p>
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="font-medium text-gray-800">{active.facultyName}</p>
+                <p className="text-xs text-gray-400">{active.facultyEmail}</p>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {thread.map((m) => (
-                  <div key={m.id} className={`text-sm rounded-lg px-3 py-2 max-w-[70%] ${m.sentByStudent ? "bg-slate-100 mr-auto" : "bg-indigo-50 ml-auto"}`}>
-                    <p className="text-xs font-medium text-slate-500 mb-0.5">{m.sentByStudent ? active.studentName : "You"}</p>
+                  <div key={m.id} className={`text-sm rounded-lg px-3 py-2 max-w-[70%] ${!m.sentByStudent ? "bg-gray-100 mr-auto" : "bg-primary/10 ml-auto"}`}>
+                    <p className="text-xs font-medium text-gray-500 mb-0.5">{m.sentByStudent ? "You" : active.facultyName}</p>
                     {m.attachmentType === "image" && m.attachmentUrl && (
                       <img src={m.attachmentUrl} alt="attachment" className="rounded-md max-w-full mb-1" />
                     )}
@@ -146,27 +146,27 @@ export default function ChatPage() {
                       <audio controls src={m.attachmentUrl} className="mb-1 max-w-full" />
                     )}
                     {m.attachmentType === "file" && m.attachmentUrl && (
-                      <a href={m.attachmentUrl} target="_blank" rel="noreferrer" className="text-indigo-600 underline block mb-1">📎 Attached file</a>
+                      <a href={m.attachmentUrl} target="_blank" rel="noreferrer" className="text-primary underline block mb-1">📎 Attached file</a>
                     )}
-                    {m.message && <p className="text-slate-800">{m.message}</p>}
-                    <p className="text-xs text-slate-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
+                    {m.message && <p className="text-gray-800">{m.message}</p>}
+                    <p className="text-xs text-gray-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
                   </div>
                 ))}
                 <div ref={threadEndRef} />
               </div>
-              <div className="flex gap-2 p-3 border-t border-slate-100 items-center">
+              <div className="flex gap-2 p-3 border-t border-gray-100 items-center">
                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file/image" className="text-slate-400 hover:text-slate-600 text-lg px-1">📎</button>
-                <button onClick={toggleRecording} title={recording ? "Stop recording" : "Record voice message"} className={`text-lg px-1 ${recording ? "text-red-500 animate-pulse" : "text-slate-400 hover:text-slate-600"}`}>🎤</button>
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file/image" className="text-gray-400 hover:text-gray-600 text-lg px-1">📎</button>
+                <button onClick={toggleRecording} title={recording ? "Stop recording" : "Record voice message"} className={`text-lg px-1 ${recording ? "text-red-500 animate-pulse" : "text-gray-400 hover:text-gray-600"}`}>🎤</button>
                 <input
-                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="input flex-1"
                   placeholder={uploading ? "Uploading…" : "Type a message…"}
                   value={message}
                   disabled={uploading}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
-                <button onClick={() => sendMessage()} disabled={uploading} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                <button onClick={() => sendMessage()} disabled={uploading} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
                   Send
                 </button>
               </div>

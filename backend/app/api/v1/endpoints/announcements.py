@@ -95,6 +95,11 @@ def get_thread(
     return ChatService(db).get_thread(current_user.id, student_id)
 
 
+@router.get("/chat/conversations", summary="Faculty: every student I can message, with last-message preview")
+def list_my_conversations(db: Session = Depends(get_db), current_user: CurrentUser = Depends(staff_only)):
+    return ChatService(db).list_conversations_for_faculty(current_user.id)
+
+
 @router.post("/chat/faculty/{faculty_id}/messages", response_model=ChatMessageOut, status_code=201,
              summary="Student replies to a faculty member in the same thread")
 def student_send_message(
@@ -103,7 +108,10 @@ def student_send_message(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles(RoleEnum.STUDENT)),
 ):
-    return ChatService(db).send_message_as_student(current_user.id, faculty_id, payload.message)
+    return ChatService(db).send_message_as_student(
+        current_user.id, faculty_id, payload.message,
+        attachment_url=payload.attachmentUrl, attachment_type=payload.attachmentType,
+    )
 
 
 @router.get("/chat/faculty/{faculty_id}/messages", response_model=List[ChatMessageOut],
@@ -114,3 +122,8 @@ def student_get_thread(
     current_user: CurrentUser = Depends(require_roles(RoleEnum.STUDENT)),
 ):
     return ChatService(db).get_thread(faculty_id, current_user.id)
+
+
+@router.get("/chat/my-conversations", summary="Student: every faculty I can message, with last-message preview")
+def student_list_conversations(db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles(RoleEnum.STUDENT))):
+    return ChatService(db).list_conversations_for_student(current_user.id)
