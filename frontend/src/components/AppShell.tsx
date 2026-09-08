@@ -223,6 +223,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [notifications, setNotifications] = useState<{ recipientId: string; title: string; message?: string; isRead: boolean; createdAt: string }[]>([]);
 
   const isStudentUser = user?.role === "student";
+  const [studentContext, setStudentContext] = useState<{ batchName?: string | null; facultyName?: string | null; courseName?: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!isStudentUser) return;
+    api.get("/api/v1/student/profile")
+      .then((r) => setStudentContext({ batchName: r.data.batchName, facultyName: r.data.facultyName, courseName: r.data.courseName }))
+      .catch(() => {});
+  }, [isStudentUser]);
 
   useEffect(() => {
     if (!user) return;
@@ -282,7 +290,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
 
       {/* Nav — FIX: overflow-y-auto on the nav itself, NOT on the page */}
-      <nav className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-5 scrollbar-thin scrollbar-thumb-white/10">
+      <nav className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-5 sidebar-scroll">
         {groups.map((group) => (
           <NavGroupSection
             key={group.label}
@@ -328,6 +336,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <p className="truncate font-display text-sm font-bold text-ink-900 dark:text-white">{brandTitle}</p>
               <p className="hidden truncate text-xs text-slate-400 dark:text-slate-500 sm:block">
                 Signed in as <span className="font-medium capitalize">{user ? ROLE_LABELS[user.role] : ""}</span>
+                {isStudentUser && studentContext?.batchName && (
+                  <> · Batch: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.batchName}</span></>
+                )}
+                {isStudentUser && studentContext?.facultyName && (
+                  <> · Faculty: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.facultyName}</span></>
+                )}
               </p>
             </div>
           </div>

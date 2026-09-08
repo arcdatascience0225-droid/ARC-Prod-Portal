@@ -42,21 +42,13 @@ export default function Dashboard() {
         <p className="text-gray-500">Here's what's happening with your learning journey.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard label="Course Progress" value={`${data.progressPercent}%`} />
         <StatCard label="Attendance" value={`${data.attendancePercent}%`} />
         <StatCard label="Assessments Taken" value={stats ? String(stats.assessmentsTaken) : "—"} />
         <StatCard label="Average Score" value={stats?.averageScore != null ? `${stats.averageScore}%` : "—"} />
         <StatCard label="Best Rank" value={stats?.bestRank != null ? `#${stats.bestRank}` : "—"} />
-        <StatCard label="Batch" value={stats?.batchName || "—"} small />
       </div>
-
-      {stats && (stats.courseName || stats.facultyName) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-6 text-sm">
-          {stats.courseName && <div><span className="text-gray-400">Course: </span><span className="font-medium text-gray-700">{stats.courseName}</span></div>}
-          {stats.facultyName && <div><span className="text-gray-400">Faculty: </span><span className="font-medium text-gray-700">{stats.facultyName}</span></div>}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
