@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,6 +8,11 @@ from app.services.student_service import StudentService
 from app.schemas import student_schemas as sc
 
 router = APIRouter(prefix="/api/v1/student/learning", tags=["Student Learning"])
+
+
+@router.get("/lecture-log", summary="What my faculty has taught in my batch so far")
+def get_lecture_log(current_user: CurrentUser = Depends(require_student), db: Session = Depends(get_db)):
+    return StudentService(db).get_lecture_log(current_user.id)
 
 
 @router.get("/syllabus", response_model=list[sc.SyllabusItemOut])
@@ -46,11 +51,29 @@ def list_assignments(current_user: CurrentUser = Depends(require_student), db: S
 @router.post("/assignments/submit", response_model=sc.AssignmentSubmissionOut, status_code=201)
 def submit_assignment(
     payload: sc.AssignmentSubmissionCreate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(require_student),
     db: Session = Depends(get_db),
 ):
-    """STU-SB-001..003: Submit assignment (document/archive/notebook/repo link)."""
-    return StudentService(db).submit_assignment(current_user.id, payload)
+    """STU-SB-001..003: Submit assignment (document/archive/notebook/repo link).
+    Triggers an AI pre-check in the background — the student's own submission
+    response doesn't wait on it."""
+    result = StudentService(db).submit_assignment(current_user.id, payload)
+
+    def _run_ai_check(submission_id):
+        import asyncio
+        from app.database import SessionLocal
+        from app.services.performance_service import PerformanceService
+        check_db = SessionLocal()
+        try:
+            asyncio.run(PerformanceService(check_db).ai_check_submission(submission_id))
+        except Exception:
+            pass  # a failed pre-check is never worth blocking or erroring the student's submission over
+        finally:
+            check_db.close()
+
+    background_tasks.add_task(_run_ai_check, result.id)
+    return result
 
 
 @router.get("/practice-questions", response_model=list[sc.PracticeQuestionOut])

@@ -163,6 +163,28 @@ class StudentService:
         from app.repositories.batch_repository import BatchRepository
         return len(BatchRepository(self.db).batch_ids_for_student(user_id)) > 0
 
+    def get_lecture_log(self, user_id: str) -> list[dict]:
+        """What faculty has taught so far, across the student's batch(es).
+        Empty for an unassigned student, same as everything else."""
+        if not self._has_batch(user_id):
+            return []
+        from app.repositories.batch_repository import BatchRepository
+        from app.models.student_extras import LectureLog
+        from app.models.shared_refs import User
+
+        batch_ids = BatchRepository(self.db).batch_ids_for_student(user_id)
+        rows = (
+            self.db.query(LectureLog, User)
+            .join(User, User.id == LectureLog.faculty_id)
+            .filter(LectureLog.batch_id.in_(batch_ids))
+            .order_by(LectureLog.date.desc())
+            .all()
+        )
+        return [
+            {"id": log.id, "date": log.date, "topic": log.topic, "notes": log.notes, "facultyName": user.name}
+            for log, user in rows
+        ]
+
     def get_syllabus(self, user_id: str) -> list[sc.SyllabusItemOut]:
         if not self._has_batch(user_id):
             return []

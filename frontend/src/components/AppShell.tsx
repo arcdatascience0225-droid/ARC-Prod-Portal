@@ -219,17 +219,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("arc-nav-collapsed") === "1");
-  const [studentContext, setStudentContext] = useState<{ batchName?: string | null; facultyName?: string | null } | null>(null);
   const [notifications, setNotifications] = useState<{ recipientId: string; title: string; message?: string; isRead: boolean; createdAt: string }[]>([]);
 
   const isStudentUser = user?.role === "student";
-
-  useEffect(() => {
-    if (!isStudentUser) return;
-    api.get("/api/v1/student/profile")
-      .then((r) => setStudentContext({ batchName: r.data.batchName, facultyName: r.data.facultyName }))
-      .catch(() => {});
-  }, [isStudentUser]);
 
   useEffect(() => {
     if (!user) return;
@@ -297,19 +289,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           />
         ))}
       </nav>
-
-      {/* User footer */}
-      <div className="border-t border-white/10 px-4 py-4 shrink-0">
-        <div className={`flex items-center gap-3 ${collapsed ? "md:justify-center" : ""}`}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500/20 text-sm font-bold text-brand-200">
-            {initialsOf(user?.name)}
-          </div>
-          <div className={`min-w-0 ${collapsed ? "md:hidden" : ""}`}>
-            <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-            <p className="truncate text-[11px] text-slate-400">{user ? ROLE_LABELS[user.role] : ""}</p>
-          </div>
-        </div>
-      </div>
     </>
   );
 
@@ -341,12 +320,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <p className="truncate font-display text-sm font-bold text-ink-900 dark:text-white">{brandTitle}</p>
               <p className="hidden truncate text-xs text-slate-400 dark:text-slate-500 sm:block">
                 Signed in as <span className="font-medium capitalize">{user ? ROLE_LABELS[user.role] : ""}</span>
-                {isStudentUser && studentContext?.batchName && (
-                  <> · Batch: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.batchName}</span></>
-                )}
-                {isStudentUser && studentContext?.facultyName && (
-                  <> · Faculty: <span className="font-medium text-ink-700 dark:text-slate-300">{studentContext.facultyName}</span></>
-                )}
               </p>
             </div>
           </div>

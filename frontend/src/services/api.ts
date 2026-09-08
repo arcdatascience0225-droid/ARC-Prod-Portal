@@ -6,6 +6,32 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+// ---------------------------------------------------------------------
+// Global in-flight-request tracking. A button click that triggers a slow
+// (15-20s) request with no visual feedback looks like it silently failed,
+// so users click again — this powers a global loading overlay (see
+// GlobalLoadingOverlay.tsx) that appears automatically for ANY API call,
+// with no per-page/per-button wiring needed.
+// ---------------------------------------------------------------------
+let activeRequests = 0;
+const loadingListeners = new Set<(active: boolean) => void>();
+
+export function subscribeToLoading(listener: (active: boolean) => void) {
+  loadingListeners.add(listener);
+  return () => loadingListeners.delete(listener);
+}
+
+function notifyLoading() {
+  const active = activeRequests > 0;
+  loadingListeners.forEach((l) => l(active));
+}
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  activeRequests += 1;
+  notifyLoading();
+  return config;
+});
+
 function getAccessToken() {
   return localStorage.getItem("accessToken");
 }
@@ -32,6 +58,19 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    activeRequests = Math.max(0, activeRequests - 1);
+    notifyLoading();
+    return response;
+  },
+  (error) => {
+    activeRequests = Math.max(0, activeRequests - 1);
+    notifyLoading();
+    return Promise.reject(error);
+  }
+);
 
 let isRefreshing = false;
 let pendingQueue: Array<() => void> = [];

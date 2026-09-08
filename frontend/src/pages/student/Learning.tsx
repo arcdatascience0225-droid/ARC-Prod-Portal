@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import { learningApi } from "../../api/studentApi";
+import { api } from "../../services/api";
 import type { SyllabusItem, DailyChallenge } from "../../types";
+
+interface LectureLogEntry {
+  id: string; date: string; topic: string; notes: string | null; facultyName: string;
+}
 
 export default function Learning() {
   const [syllabus, setSyllabus] = useState<SyllabusItem[]>([]);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [answer, setAnswer] = useState("");
   const [challengeMsg, setChallengeMsg] = useState<string | null>(null);
+  const [lectureLog, setLectureLog] = useState<LectureLogEntry[]>([]);
 
   useEffect(() => {
     learningApi.getSyllabus().then(setSyllabus);
@@ -14,6 +20,7 @@ export default function Learning() {
       .getDailyChallenge()
       .then(setChallenge)
       .catch(() => setChallenge(null));
+    api.get<LectureLogEntry[]>("/api/v1/student/learning/lecture-log").then((r) => setLectureLog(r.data)).catch(() => {});
   }, []);
 
   const toggleStatus = async (item: SyllabusItem) => {
@@ -55,6 +62,26 @@ export default function Learning() {
           {challengeMsg && <p className="text-sm text-gray-500 mt-2">{challengeMsg}</p>}
         </div>
       )}
+
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h2 className="font-semibold text-gray-800 mb-3">📋 What's Been Taught</h2>
+        {lectureLog.length === 0 ? (
+          <p className="text-sm text-gray-400">Nothing logged yet — check back after your next class.</p>
+        ) : (
+          <ul className="space-y-3">
+            {lectureLog.map((l) => (
+              <li key={l.id} className="border border-gray-100 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-800">{l.topic}</p>
+                  <p className="text-xs text-gray-400">{new Date(l.date).toLocaleDateString()}</p>
+                </div>
+                {l.notes && <p className="text-xs text-gray-500 mt-1">{l.notes}</p>}
+                <p className="text-[11px] text-gray-400 mt-1">by {l.facultyName}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-800 mb-3">Syllabus</h2>

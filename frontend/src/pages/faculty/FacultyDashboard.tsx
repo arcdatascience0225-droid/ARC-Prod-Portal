@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBatchesSummary, getMySummary, BatchSummaryRow, FacultyActivitySummary } from "../../api/facultyApi";
 import ArcLoader from "../../components/ArcLoader";
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#a855f7"];
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -48,6 +51,74 @@ export default function FacultyDashboard() {
             <StatCard label="Assessments Given" value={summary.assessmentsCreated} />
             <StatCard label="Mocks Scheduled" value={summary.mocksScheduled} />
           </div>
+        </div>
+      )}
+
+      {(summary || batches.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {summary && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Activity Overview</h3>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { name: "Lectures", value: summary.lecturesTaken },
+                    { name: "Online", value: summary.onlineClasses },
+                    { name: "Offline", value: summary.offlineClasses },
+                    { name: "Assessments", value: summary.assessmentsCreated },
+                    { name: "Mocks", value: summary.mocksScheduled },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {batches.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Students per Batch</h3>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={batches.map((b) => ({ name: b.batchName, value: b.studentsCount }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      label={(e) => `${e.name}: ${e.value}`}
+                    >
+                      {batches.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {batches.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Syllabus Progress</h3>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={batches.map((b) => ({ name: b.batchName, syllabus: b.syllabusPercent }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="syllabus" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

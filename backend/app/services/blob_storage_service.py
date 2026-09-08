@@ -41,3 +41,19 @@ class BlobStorageService:
             overwrite=True,
         )
         return f"{container_client.url}/{filename}"
+
+    def upload_file(self, file_bytes: bytes, filename: str, content_type: str) -> str:
+        """Generic upload to the platform-uploads container — used by
+        assignment attachments, student assignment submissions, and chat
+        file/image attachments."""
+        if not self._client:
+            raise RuntimeError("Azure Blob Storage is not configured (AZURE_STORAGE_CONNECTION_STRING missing)")
+
+        container = settings.AZURE_STORAGE_CONTAINER
+        blob_name = f"{uuid.uuid4()}-{filename}"
+        container_client = self._client.get_container_client(container)
+        container_client.upload_blob(
+            name=blob_name, data=file_bytes,
+            content_settings=ContentSettings(content_type=content_type),
+        )
+        return f"{container_client.url}/{blob_name}"

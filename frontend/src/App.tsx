@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { AppShellLayout } from "./components/AppShell";
+import GlobalLoadingOverlay from "./components/GlobalLoadingOverlay";
 
 // Auth (public)
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -99,6 +100,7 @@ const App: React.FC = () => (
   <ThemeProvider>
   <BrowserRouter>
     <AuthProvider>
+      <GlobalLoadingOverlay />
       <Routes>
         {/* ---------- Public ---------- */}
         <Route path="/login" element={<LoginPage />} />
