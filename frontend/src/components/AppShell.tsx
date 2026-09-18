@@ -132,10 +132,6 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/admin/notifications",    label: "Notifications",       roles: ["super_admin","admin"], icon: Icons.bell },
     ],
   },
-  {
-    label: "Analytics",
-    items: [{ to: "/analytics", label: "Analytics", roles: ["super_admin","admin","faculty","trainer","hr","placement_coordinator"], icon: Icons.chart }],
-  },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

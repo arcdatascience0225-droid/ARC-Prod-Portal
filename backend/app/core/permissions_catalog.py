@@ -110,9 +110,6 @@ PERMISSIONS_CATALOG = [
      "defaultRoles": ["super_admin", "admin"]},
     {"path": "/admin/fees", "label": "Fees", "group": "Administration",
      "defaultRoles": ["super_admin", "admin", "manager"]},
-
-    {"path": "/analytics", "label": "Analytics", "group": "Analytics",
-     "defaultRoles": ["super_admin", "admin", "faculty", "trainer", "hr", "placement_coordinator"]},
 ]
 
 
