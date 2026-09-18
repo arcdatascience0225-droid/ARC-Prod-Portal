@@ -326,6 +326,7 @@ class StudentService:
             title=assessment["title"],
             duration=assessment["duration"],
             started_at=result["started_at"],
+            max_violations=assessment.get("max_violations") or 10,
             questions=[
                 sc.QuestionForAttempt(
                     id=q["id"], question_text=q["question_text"], type=q["type"],

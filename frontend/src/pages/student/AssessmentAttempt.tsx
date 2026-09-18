@@ -5,7 +5,7 @@ import Timer from "../../components/Timer";
 import QuestionNavigator from "../../components/QuestionNavigator";
 import type { AssessmentAttempt as AttemptType, AnswerSubmit, AssessmentResult } from "../../types";
 
-const MAX_VIOLATIONS = 3;
+const DEFAULT_MAX_VIOLATIONS = 10; // fallback only — the real value always comes from attempt.maxViolations (faculty-configured, per assessment)
 const SNAPSHOT_INTERVAL_MS = 37_000; // 37s - staggered to reduce CPU spikes
 const API_ROOT = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const BASE = `${API_ROOT}/api/v1/student/assessments`;
@@ -293,16 +293,22 @@ export default function AssessmentAttempt() {
   // ── Lockdown listeners ────────────────────────────────────────────────────
   useEffect(() => {
     if (!attempt || result || !started || terminated) return;
+    // Grace period right after the test starts: entering fullscreen and the
+    // browser's own camera-permission popup can themselves trigger a blur /
+    // visibility-change / fullscreen-exit event, which would otherwise count
+    // as a violation the student never actually caused.
+    const graceUntil = Date.now() + 4000;
     const flag = (msg: string) => {
       if (submittedRef.current) return;
+      if (Date.now() < graceUntil) return;
       violationsRef.current += 1;
       setViolations(violationsRef.current);
       setLocked(true);
-      if (violationsRef.current >= MAX_VIOLATIONS) {
+      if (violationsRef.current >= (attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS)) {
         setWarning("Too many violations — your test has been terminated.");
         handleTerminate();
       } else {
-        setWarning(`${msg} Violation ${violationsRef.current}/${MAX_VIOLATIONS}. At ${MAX_VIOLATIONS} your test is terminated.`);
+        setWarning(`${msg} Violation ${violationsRef.current}/${(attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS)}. At ${(attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS)} your test is terminated.`);
       }
     };
     const onVis = () => { if (document.hidden) flag("Tab switched."); };
@@ -374,7 +380,7 @@ export default function AssessmentAttempt() {
             You <strong>cannot</strong> resume or restart this attempt.
           </p>
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-            Violation count reached {MAX_VIOLATIONS}/{MAX_VIOLATIONS}. This event has been logged and flagged for review.
+            Violation count reached {(attempt?.maxViolations ?? DEFAULT_MAX_VIOLATIONS)}/{(attempt?.maxViolations ?? DEFAULT_MAX_VIOLATIONS)}. This event has been logged and flagged for review.
           </div>
 
           {!helpSent ? (
@@ -423,7 +429,7 @@ export default function AssessmentAttempt() {
           <ul className="list-disc pl-5 space-y-1">
             <li>This test runs in fullscreen and your webcam is recorded.</li>
             <li>Tab switching, window blur, or fullscreen exit = <strong>violation</strong>.</li>
-            <li>After <strong>{MAX_VIOLATIONS} violations</strong> your test is <strong>permanently terminated</strong>.</li>
+            <li>After <strong>{(attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS)} violations</strong> your test is <strong>permanently terminated</strong>.</li>
             <li>Terminated attempts <strong>cannot be restarted</strong> — even on page reload.</li>
             <li>Copy, paste, right-click and DevTools are blocked.</li>
           </ul>
@@ -467,17 +473,17 @@ export default function AssessmentAttempt() {
       {locked && (
         <div className="fixed inset-0 z-50 bg-slate-950/98 flex items-center justify-center p-6">
           <div className="max-w-md text-center space-y-4">
-            <p className="text-5xl">{violations >= MAX_VIOLATIONS ? "🚫" : "🔒"}</p>
+            <p className="text-5xl">{violations >= (attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS) ? "🚫" : "🔒"}</p>
             <h2 className="text-xl font-black text-white">
-              {violations >= MAX_VIOLATIONS ? "Test Terminated" : "Test Paused"}
+              {violations >= (attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS) ? "Test Terminated" : "Test Paused"}
             </h2>
             <p className="text-sm text-slate-300">{warning}</p>
             <div className={`text-xs px-3 py-1.5 rounded-full inline-block font-bold ${
-              violations >= MAX_VIOLATIONS ? "bg-red-800 text-red-200" : "bg-amber-800 text-amber-200"
+              violations >= (attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS) ? "bg-red-800 text-red-200" : "bg-amber-800 text-amber-200"
             }`}>
-              Violation {violations}/{MAX_VIOLATIONS}
+              Violation {violations}/{(attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS)}
             </div>
-            {violations < MAX_VIOLATIONS && (
+            {violations < (attempt.maxViolations ?? DEFAULT_MAX_VIOLATIONS) && (
               <button onClick={async () => { try { await enterFullscreen(); } catch {} setLocked(false); }}
                 className="block w-full px-5 py-3 bg-primary text-white rounded-xl text-sm font-semibold">
                 Return to fullscreen to resume

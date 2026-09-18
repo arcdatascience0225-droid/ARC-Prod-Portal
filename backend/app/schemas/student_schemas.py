@@ -187,6 +187,7 @@ class AssessmentAttemptOut(CamelModel):
     title: str
     duration: int
     started_at: datetime
+    max_violations: int = 10
     questions: List[QuestionForAttempt]
 
 
