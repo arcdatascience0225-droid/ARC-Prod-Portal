@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import faculty_or_trainer, require_roles, CurrentUser
+from app.api.deps import faculty_or_trainer, attendance_marker, require_roles, CurrentUser
 from app.utils.auth import require_student, CurrentUser as StudentCurrentUser
 from app.db.session import get_db
 from app.schemas.attendance import AttendanceMarkRequest, AttendanceOut, AttendanceFaceRecognitionHook
@@ -26,7 +26,7 @@ def get_my_attendance(
 def mark_attendance(
     payload: AttendanceMarkRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(faculty_or_trainer),
+    current_user: CurrentUser = Depends(attendance_marker),
 ):
     return AttendanceService(db).mark_attendance(payload, marked_by=current_user.id)
 
@@ -37,7 +37,7 @@ def get_batch_attendance(
     batch_id: UUID,
     for_date: date,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(faculty_or_trainer),
+    current_user: CurrentUser = Depends(attendance_marker),
 ):
     return AttendanceService(db).get_batch_attendance(batch_id, for_date)
 
@@ -59,7 +59,7 @@ def attendance_report(
     end_date: date | None = None,
     student_name: str | None = None,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(faculty_or_trainer),
+    current_user: CurrentUser = Depends(attendance_marker),
 ):
     return AttendanceService(db).attendance_report(batch_id, start_date, end_date, student_name)
 

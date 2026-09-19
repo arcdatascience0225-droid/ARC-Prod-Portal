@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import faculty_or_trainer, CurrentUser
+from app.api.deps import faculty_or_trainer, attendance_marker, CurrentUser
 from app.db.session import get_db
 from app.schemas.batch import BatchCreate, BatchOut, StudentInBatch, AddStudentsToBatch
 from app.services.batch_service import BatchService
@@ -26,9 +26,9 @@ def create_batch(
 @router.get("/batches", response_model=List[BatchOut], summary="List batches assigned to me (FAC-001)")
 def my_batches(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(faculty_or_trainer),
+    current_user: CurrentUser = Depends(attendance_marker),
 ):
-    is_admin = current_user.role in ("admin", "super_admin")
+    is_admin = current_user.role in ("admin", "super_admin", "manager")
     return BatchService(db).list_my_batches(current_user.id, is_admin=is_admin)
 
 
@@ -48,7 +48,7 @@ def add_students(
 def batch_students(
     batch_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(faculty_or_trainer),
+    current_user: CurrentUser = Depends(attendance_marker),
 ):
     return BatchService(db).list_students(batch_id)
 

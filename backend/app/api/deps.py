@@ -5,5 +5,6 @@ from app.core.deps import (  # noqa: F401
     require_roles,
     CurrentUser,
     faculty_or_trainer,
+    attendance_marker,
     student_only,
 )

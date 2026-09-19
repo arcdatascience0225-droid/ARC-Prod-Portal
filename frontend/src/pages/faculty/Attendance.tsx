@@ -161,6 +161,20 @@ export default function AttendancePage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportStaffToExcel = () => {
+    const header = ["Name", "Email", "Date", "Status"];
+    const lines = staffList.map((s) => [
+      s.name, s.email, staffDate, staffStatuses[s.id] || "not marked",
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [header.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `faculty_attendance_${staffDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-10">
       {/* ── Faculty attendance — Manager only ─────────────────────────────── */}
@@ -168,8 +182,14 @@ export default function AttendancePage() {
         <div>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h1 className="text-2xl font-semibold text-slate-800">Faculty Attendance</h1>
-            <input type="date" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-              value={staffDate} onChange={(e) => setStaffDate(e.target.value)} />
+            <div className="flex items-center gap-2">
+              <input type="date" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                value={staffDate} onChange={(e) => setStaffDate(e.target.value)} />
+              <button onClick={exportStaffToExcel} disabled={staffList.length === 0}
+                className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 disabled:opacity-50">
+                ⬇ Export
+              </button>
+            </div>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
             {staffList.map((s) => (

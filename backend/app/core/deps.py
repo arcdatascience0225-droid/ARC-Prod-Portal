@@ -124,8 +124,15 @@ STAFF_ROLES = (
 )
 HR_ROLES = (RoleEnum.HR, RoleEnum.PLACEMENT_COORDINATOR, RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN)
 FACULTY_OR_TRAINER = (RoleEnum.FACULTY, RoleEnum.TRAINER, RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN)
+# A dedicated institute-wide attendance marker (e.g. a security/admin staff
+# member who takes attendance for everyone, faculty included) needs to mark
+# STUDENT attendance for any batch too — but should not gain the rest of
+# faculty_or_trainer's access (grading, question bank, creating assessments).
+# This is intentionally its own, narrower role list.
+ATTENDANCE_MARKER_ROLES = (RoleEnum.FACULTY, RoleEnum.TRAINER, RoleEnum.MANAGER, RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN)
 STUDENT_ONLY = (RoleEnum.STUDENT,)
 
 # phase3-style pre-built dependency callables
 faculty_or_trainer = require_roles(*FACULTY_OR_TRAINER)
+attendance_marker = require_roles(*ATTENDANCE_MARKER_ROLES)
 student_only = require_roles(*STUDENT_ONLY)
