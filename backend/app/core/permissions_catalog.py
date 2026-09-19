@@ -12,7 +12,7 @@ for "what can this user see".
 PERMISSIONS_CATALOG = [
     # (path, label, group, default_roles)
     {"path": "/dashboard", "label": "Dashboard", "group": "Overview",
-     "defaultRoles": ["super_admin", "admin", "hr", "placement_coordinator", "counsellor", "manager", "guest"]},
+     "defaultRoles": ["super_admin", "admin", "hr", "placement_coordinator", "counsellor", "guest"]},
 
     {"path": "/student/dashboard", "label": "Dashboard", "group": "Learning",
      "defaultRoles": ["student"]},
@@ -43,9 +43,9 @@ PERMISSIONS_CATALOG = [
      "defaultRoles": ["student"]},
 
     {"path": "/registration/staff", "label": "Register Student", "group": "Registration",
-     "defaultRoles": ["super_admin", "faculty", "trainer", "hr", "placement_coordinator", "manager"]},
+     "defaultRoles": ["super_admin", "faculty", "trainer", "hr", "placement_coordinator"]},
     {"path": "/registration/invite", "label": "Invite Links", "group": "Registration",
-     "defaultRoles": ["super_admin", "faculty", "trainer", "hr", "placement_coordinator", "manager"]},
+     "defaultRoles": ["super_admin", "faculty", "trainer", "hr", "placement_coordinator"]},
 
     {"path": "/faculty/dashboard", "label": "Faculty Dashboard", "group": "Faculty Portal",
      "defaultRoles": ["faculty", "trainer", "super_admin"]},
@@ -95,7 +95,7 @@ PERMISSIONS_CATALOG = [
     {"path": "/admin/courses-batches", "label": "Courses & Batches", "group": "Administration",
      "defaultRoles": ["super_admin", "admin"]},
     {"path": "/admin/payments", "label": "Payments", "group": "Administration",
-     "defaultRoles": ["super_admin", "admin", "manager"]},
+     "defaultRoles": ["super_admin", "admin"]},
     {"path": "/admin/settings", "label": "Platform Settings", "group": "Administration",
      "defaultRoles": ["super_admin"]},
     {"path": "/admin/audit-log", "label": "Audit Log", "group": "Administration",
@@ -109,7 +109,7 @@ PERMISSIONS_CATALOG = [
     {"path": "/admin/faculty", "label": "Faculty", "group": "Administration",
      "defaultRoles": ["super_admin", "admin"]},
     {"path": "/admin/fees", "label": "Fees", "group": "Administration",
-     "defaultRoles": ["super_admin", "admin", "manager"]},
+     "defaultRoles": ["super_admin", "admin"]},
 ]
 
 

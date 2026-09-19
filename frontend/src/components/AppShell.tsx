@@ -45,7 +45,7 @@ interface NavGroup { label: string; items: NavItem[]; collapsible?: boolean; }
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ to: "/dashboard", label: "Dashboard", roles: ["super_admin","admin","hr","placement_coordinator","counsellor","manager","guest"], icon: Icons.dashboard }],
+    items: [{ to: "/dashboard", label: "Dashboard", roles: ["super_admin","admin","hr","placement_coordinator","counsellor","guest"], icon: Icons.dashboard }],
   },
   {
     label: "Registration",
@@ -124,8 +124,8 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/admin/courses-batches",  label: "Courses & Batches",   roles: ["super_admin","admin"], icon: Icons.book },
       { to: "/admin/students",         label: "Students",            roles: ["super_admin","admin","hr"], icon: Icons.users },
       { to: "/admin/faculty",          label: "Faculty",             roles: ["super_admin","admin"], icon: Icons.users },
-      { to: "/admin/payments",         label: "Payments",            roles: ["super_admin","admin","manager"], icon: Icons.card },
-      { to: "/admin/fees",             label: "Fees",                roles: ["super_admin","admin","manager"], icon: Icons.card },
+      { to: "/admin/payments",         label: "Payments",            roles: ["super_admin","admin"], icon: Icons.card },
+      { to: "/admin/fees",             label: "Fees",                roles: ["super_admin","admin"], icon: Icons.card },
       { to: "/admin/settings",         label: "Platform Settings",   roles: ["super_admin"], icon: Icons.settings },
       { to: "/admin/audit-log",        label: "Audit Log",           roles: ["super_admin"], icon: Icons.logs },
       { to: "/admin/ai-usage",         label: "AI Usage Dashboard",  roles: ["super_admin"], icon: Icons.bot },

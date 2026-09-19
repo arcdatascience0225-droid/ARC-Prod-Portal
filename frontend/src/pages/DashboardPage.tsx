@@ -19,6 +19,7 @@ export const DashboardPage: React.FC = () => {
   if (user.role === "hr") return <Navigate to="/hr/analytics" replace />;
   if (user.role === "placement_coordinator") return <Navigate to="/hr/analytics" replace />;
   if (user.role === "counsellor") return <Navigate to="/counsellor/leads" replace />;
+  if (user.role === "manager") return <Navigate to="/faculty/attendance" replace />;
 
   // No dedicated dashboard for this role — nothing else to redirect to.
   return null;
