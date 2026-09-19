@@ -52,6 +52,12 @@ class AuthService:
         email = email.lower().strip()
         user = self.user_repo.get_by_email(email)
 
+        if user and self.reg_repo.count_recent_failed_logins(user.id) >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed login attempts. Please try again in 15 minutes.",
+            )
+
         if not user or not verify_password(password, user.password_hash):
             if user:
                 self.reg_repo.add_sign_in_log(

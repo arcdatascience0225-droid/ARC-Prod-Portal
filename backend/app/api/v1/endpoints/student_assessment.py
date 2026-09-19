@@ -137,6 +137,16 @@ async def upload_snapshot(
     db: Session = Depends(get_db),
 ):
     """Receive a webcam frame from the exam page and persist it for review."""
+    result = db.query(Result).filter(
+        Result.id == result_id,
+        Result.user_id == current_user.id,
+    ).first()
+    if not result:
+        # Silently drop rather than error — a stray snapshot for someone
+        # else's (or a nonexistent) result_id isn't worth surfacing to the
+        # student mid-exam, but it must not touch another student's row.
+        return
+
     os.makedirs(SNAPSHOT_DIR, exist_ok=True)
     fname = f"{result_id}_{current_user.id}_{int(__import__('time').time())}.jpg"
     path = os.path.join(SNAPSHOT_DIR, fname)
@@ -144,20 +154,15 @@ async def upload_snapshot(
     with open(path, "wb") as f:
         f.write(data)
 
-    result = db.query(Result).filter(Result.id == result_id).first()
-    if result:
-        result.violation_count = violation_count
-        if violation_count >= 2:
-            result.is_flagged = True
-        # Lazy-import to avoid circular imports
-        from app.models.assessment import Assessment
-        assessment_id = result.assessment_id
-        db.add(ProctorSnapshot(
-            result_id=result_id, user_id=current_user.id,
-            assessment_id=assessment_id, image_path=path,
-            violation_count=violation_count,
-        ))
-        db.commit()
+    result.violation_count = violation_count
+    if violation_count >= 2:
+        result.is_flagged = True
+    db.add(ProctorSnapshot(
+        result_id=result_id, user_id=current_user.id,
+        assessment_id=result.assessment_id, image_path=path,
+        violation_count=violation_count,
+    ))
+    db.commit()
 
 
 class TerminateRequest(BaseModel):

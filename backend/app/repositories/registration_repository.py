@@ -145,6 +145,17 @@ class RegistrationRepository:
         self.db.refresh(log)
         return log
 
+    def count_recent_failed_logins(self, user_id, minutes: int = 15) -> int:
+        """Brute-force lockout support — how many failed attempts this user
+        has had in the last `minutes` minutes."""
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        return (
+            self.db.query(SignInLog)
+            .filter(SignInLog.user_id == user_id, SignInLog.status == "failed", SignInLog.created_at >= cutoff)
+            .count()
+        )
+
     def list_sign_in_logs(self, skip: int = 0, limit: int = 50, user_id: Optional[uuid.UUID] = None):
         query = self.db.query(SignInLog)
         if user_id:

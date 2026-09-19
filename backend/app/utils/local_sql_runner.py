@@ -33,6 +33,16 @@ class SqlRunResult:
         return "\n".join(lines)
 
 
+def _lockdown_authorizer(action, arg1, arg2, db_name, trigger_name):
+    """Blocks ATTACH (which would let a student's query open and read an
+    arbitrary file on the server's filesystem as a second "database") and
+    native extension loading, while allowing every normal read/write
+    operation a student's SQL question could legitimately need."""
+    if action in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, getattr(sqlite3, "SQLITE_LOAD_EXTENSION", -1)):
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
+
+
 def run_sql(schema_sql: str, query: str, timeout_seconds: float = 8.0) -> SqlRunResult:
     """Run `query` against a fresh in-memory DB seeded with `schema_sql`.
     A thread + timer enforces the timeout, since sqlite3 has no native
@@ -41,6 +51,7 @@ def run_sql(schema_sql: str, query: str, timeout_seconds: float = 8.0) -> SqlRun
 
     def _work():
         conn = sqlite3.connect(":memory:")
+        conn.set_authorizer(_lockdown_authorizer)
         try:
             cur = conn.cursor()
             if schema_sql:
