@@ -141,6 +141,35 @@ export const getStudentBreakdown = (studentId: string, batchId?: string) =>
     params: { batch_id: batchId || undefined },
   }).then((r) => r.data);
 
+// ---------- Date-wise lookup ----------
+export interface DateLookupResult { status: string; reason: string | null; photoUrl?: string | null }
+
+export const getStudentOnDate = (studentId: string, onDate: string) =>
+  apiClient.get<DateLookupResult>(`/attendance/student/${studentId}/on-date`, { params: { on_date: onDate } }).then((r) => r.data);
+
+export const getStaffOnDate = (staffId: string, onDate: string) =>
+  apiClient.get<DateLookupResult>(`/attendance/staff/${staffId}/on-date`, { params: { on_date: onDate } }).then((r) => r.data);
+
+// ---------- Staff breakdown (mirrors student AttendanceBreakdown, no photo) ----------
+export interface StaffAttendanceBreakdown {
+  present: number; absent: number; late: number; total: number; percent: number | null;
+  months: { month: string; present: number; absent: number; late: number; total: number; percent: number | null }[];
+  absences: { date: string; status: string; reason: string | null }[];
+}
+
+export const getStaffBreakdown = (staffId: string) =>
+  apiClient.get<StaffAttendanceBreakdown>(`/attendance/staff/${staffId}/breakdown`).then((r) => r.data);
+
+// ---------- Analytics (bar / pie / line) ----------
+export interface AttendanceAnalytics {
+  pie: { present: number; absent: number; late: number };
+  bar: { label: string; percent: number }[];
+  line: { date: string; percent: number | null }[];
+}
+
+export const getAttendanceAnalytics = (batchId?: string, days = 30) =>
+  apiClient.get<AttendanceAnalytics>("/attendance/analytics", { params: { batch_id: batchId || undefined, days } }).then((r) => r.data);
+
 export interface StudentFullDetail {
   studentId: string;
   studentName: string;

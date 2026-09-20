@@ -89,16 +89,17 @@ def staff_list(
 
 @router.post("/staff", summary="Manager: mark a faculty/trainer's attendance for a date")
 def mark_staff_attendance(
-    payload: dict,  # {"staffId": str, "date": "YYYY-MM-DD", "status": "present"|"absent"|"late"}
+    payload: dict,  # {"staffId": str, "date": "YYYY-MM-DD", "status": "present"|"absent"|"late", "reason": str | null}
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles(*STAFF_ATTENDANCE_ROLES)),
 ):
     from datetime import date as date_cls
-    from app.models.staff_attendance import StaffAttendance
+    from app.models.staff_attendance import StaffAttendance, StaffAttendanceNote
 
     staff_id = payload.get("staffId")
     entry_date = date_cls.fromisoformat(payload.get("date"))
     status = payload.get("status", "present")
+    reason = payload.get("reason")
 
     existing = db.query(StaffAttendance).filter(
         StaffAttendance.staff_id == staff_id, StaffAttendance.date == entry_date,
@@ -106,9 +107,23 @@ def mark_staff_attendance(
     if existing:
         existing.status = status
         existing.marked_by = current_user.id
+        record = existing
     else:
-        db.add(StaffAttendance(staff_id=staff_id, date=entry_date, status=status, marked_by=current_user.id))
+        record = StaffAttendance(staff_id=staff_id, date=entry_date, status=status, marked_by=current_user.id)
+        db.add(record)
     db.commit()
+    db.refresh(record)
+
+    note = db.query(StaffAttendanceNote).filter(StaffAttendanceNote.staff_attendance_id == record.id).first()
+    if reason:
+        if note:
+            note.reason = reason
+        else:
+            db.add(StaffAttendanceNote(staff_attendance_id=record.id, reason=reason))
+        db.commit()
+    elif note and status == "present":
+        db.delete(note)
+        db.commit()
     return {"status": "ok"}
 
 
@@ -118,7 +133,7 @@ def get_staff_attendance(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles(*STAFF_ATTENDANCE_ROLES)),
 ):
-    from app.models.staff_attendance import StaffAttendance
+    from app.models.staff_attendance import StaffAttendance, StaffAttendanceNote
     from app.models.user import User
     rows = (
         db.query(StaffAttendance, User)
@@ -126,7 +141,11 @@ def get_staff_attendance(
         .filter(StaffAttendance.date == for_date)
         .all()
     )
-    return [{"staffId": str(sa.staff_id), "name": u.name, "status": sa.status} for sa, u in rows]
+    out = []
+    for sa, u in rows:
+        note = db.query(StaffAttendanceNote).filter(StaffAttendanceNote.staff_attendance_id == sa.id).first()
+        out.append({"staffId": str(sa.staff_id), "name": u.name, "status": sa.status, "reason": note.reason if note else None})
+    return out
 
 
 @router.post("/face-recognition-hook", summary="Placeholder hook to trigger face-recognition attendance (FAC-002)")
@@ -195,3 +214,42 @@ def student_breakdown(
     current_user: CurrentUser = Depends(attendance_marker),
 ):
     return AttendanceService(db).student_attendance_breakdown(student_id, batch_id)
+
+
+@router.get("/student/{student_id}/on-date", summary="Was this student present/absent/late on a specific date?")
+def student_on_date(
+    student_id: UUID,
+    on_date: date,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    return AttendanceService(db).student_on_date(student_id, on_date)
+
+
+@router.get("/staff/{staff_id}/on-date", summary="Was this faculty/trainer present/absent/late on a specific date?")
+def staff_on_date(
+    staff_id: UUID,
+    on_date: date,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles(*STAFF_ATTENDANCE_ROLES)),
+):
+    return AttendanceService(db).staff_on_date(staff_id, on_date)
+
+
+@router.get("/staff/{staff_id}/breakdown", summary="Month-by-month breakdown + full absence list for a faculty/trainer")
+def staff_breakdown(
+    staff_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles(*STAFF_ATTENDANCE_ROLES)),
+):
+    return AttendanceService(db).staff_attendance_breakdown(staff_id)
+
+
+@router.get("/analytics", summary="Attendance analytics for dashboard charts (bar/pie/line)")
+def attendance_analytics(
+    batch_id: UUID | None = None,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    return AttendanceService(db).analytics(batch_id, days)

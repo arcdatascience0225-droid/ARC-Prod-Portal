@@ -325,3 +325,104 @@ class AttendanceService:
             "present": present, "absent": absent, "late": late, "total": total, "percent": pct,
             "months": months, "absences": absences,
         }
+
+    # ---------- Date-wise lookup ----------
+    def student_on_date(self, student_id: UUID, on_date: date) -> dict:
+        from app.models.attendance import Attendance, AttendanceNote
+        r = self.db.query(Attendance).filter(Attendance.student_id == student_id, Attendance.date == on_date).first()
+        if not r:
+            return {"status": "not_marked", "reason": None, "photoUrl": None}
+        note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == r.id).first()
+        return {"status": r.status, "reason": note.reason if note else None, "photoUrl": note.photo_url if note else None}
+
+    def staff_on_date(self, staff_id: UUID, on_date: date) -> dict:
+        from app.models.staff_attendance import StaffAttendance, StaffAttendanceNote
+        r = self.db.query(StaffAttendance).filter(StaffAttendance.staff_id == staff_id, StaffAttendance.date == on_date).first()
+        if not r:
+            return {"status": "not_marked", "reason": None}
+        note = self.db.query(StaffAttendanceNote).filter(StaffAttendanceNote.staff_attendance_id == r.id).first()
+        return {"status": r.status, "reason": note.reason if note else None}
+
+    # ---------- Staff breakdown (mirrors student_attendance_breakdown) ----------
+    def staff_attendance_breakdown(self, staff_id: UUID) -> dict:
+        from app.models.staff_attendance import StaffAttendance, StaffAttendanceNote
+
+        records = self.db.query(StaffAttendance).filter(StaffAttendance.staff_id == staff_id).order_by(StaffAttendance.date.desc()).all()
+
+        by_month: dict = {}
+        for r in records:
+            key = r.date.strftime("%Y-%m")
+            by_month.setdefault(key, {"present": 0, "absent": 0, "late": 0})
+            by_month[key][r.status] += 1
+        months = [
+            {"month": k, **v, "total": v["present"] + v["absent"] + v["late"],
+             "percent": round((v["present"] + v["late"]) / (v["present"] + v["absent"] + v["late"]) * 100, 1)
+             if (v["present"] + v["absent"] + v["late"]) else None}
+            for k, v in sorted(by_month.items(), reverse=True)
+        ]
+
+        absences = []
+        for r in records:
+            if r.status == "present":
+                continue
+            note = self.db.query(StaffAttendanceNote).filter(StaffAttendanceNote.staff_attendance_id == r.id).first()
+            absences.append({"date": r.date.isoformat(), "status": r.status, "reason": note.reason if note else None})
+
+        present = sum(1 for r in records if r.status == "present")
+        absent = sum(1 for r in records if r.status == "absent")
+        late = sum(1 for r in records if r.status == "late")
+        total = len(records)
+        pct = round((present + late) / total * 100, 1) if total else None
+
+        return {
+            "present": present, "absent": absent, "late": late, "total": total, "percent": pct,
+            "months": months, "absences": absences,
+        }
+
+    # ---------- Analytics: bar / pie / line ----------
+    def analytics(self, batch_id: UUID | None = None, days: int = 30) -> dict:
+        """Data for the three dashboard charts:
+        - bar: attendance % by batch (or empty if a single batch is already picked)
+        - pie: overall Present / Absent / Late split
+        - line: daily attendance % trend over the last `days` days
+        """
+        from datetime import timedelta
+        from app.models.attendance import Attendance
+        from app.models.course import Batch
+
+        cutoff = date.today() - timedelta(days=days)
+        q = self.db.query(Attendance).filter(Attendance.date >= cutoff)
+        if batch_id:
+            q = q.filter(Attendance.batch_id == batch_id)
+        records = q.all()
+
+        present_n = sum(1 for r in records if r.status == "present")
+        absent_n = sum(1 for r in records if r.status == "absent")
+        late_n = sum(1 for r in records if r.status == "late")
+
+        bar = []
+        if not batch_id:
+            batches = self.db.query(Batch).all()
+            for b in batches:
+                b_records = [r for r in records if r.batch_id == b.id]
+                if not b_records:
+                    continue
+                b_present = sum(1 for r in b_records if r.status in ("present", "late"))
+                bar.append({"label": b.name, "percent": round(b_present / len(b_records) * 100, 1)})
+
+        by_day: dict = {}
+        for r in records:
+            by_day.setdefault(r.date, {"present": 0, "total": 0})
+            by_day[r.date]["total"] += 1
+            if r.status in ("present", "late"):
+                by_day[r.date]["present"] += 1
+        line = [
+            {"date": d.isoformat(), "percent": round(v["present"] / v["total"] * 100, 1) if v["total"] else None}
+            for d, v in sorted(by_day.items())
+        ]
+
+        return {
+            "pie": {"present": present_n, "absent": absent_n, "late": late_n},
+            "bar": bar,
+            "line": line,
+        }

@@ -20,3 +20,13 @@ class StaffAttendance(Base):
     status = Column(String(20), nullable=False, default="present")  # present | absent | late
     marked_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StaffAttendanceNote(Base):
+    """Optional reason for a staff absence/late — mirrors AttendanceNote
+    for students. New table, no migration needed."""
+    __tablename__ = "staff_attendance_notes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    staff_attendance_id = Column(UUID(as_uuid=True), ForeignKey("staff_attendance.id"), nullable=False, unique=True)
+    reason = Column(String(300), nullable=True)

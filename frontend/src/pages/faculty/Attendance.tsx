@@ -5,11 +5,17 @@ import {
   listHolidays, addHoliday, removeHoliday, Holiday,
   getMonthGrid, MonthGrid,
   getStudentBreakdown, AttendanceBreakdown,
+  getStudentOnDate, getStaffOnDate, DateLookupResult,
+  getStaffBreakdown, StaffAttendanceBreakdown,
+  getAttendanceAnalytics, AttendanceAnalytics,
 } from "../../api/facultyApi";
 import ArcLoader from "../../components/ArcLoader";
 import { FacultyBatch, StudentInBatch, AttendanceStatus, AttendanceRecord } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+const PIE_COLORS = { present: "#10b981", absent: "#e11d48", late: "#f59e0b" };
 
 const REASONS = ["Sick", "Family function", "Travel", "No transport", "Other"];
 
@@ -41,7 +47,13 @@ export default function AttendancePage() {
   const [staffList, setStaffList] = useState<{ id: string; name: string; email: string }[]>([]);
   const [staffDate, setStaffDate] = useState<string>(todayIso());
   const [staffStatuses, setStaffStatuses] = useState<Record<string, AttendanceStatus>>({});
+  const [staffReasons, setStaffReasons] = useState<Record<string, string>>({});
   const [savingStaff, setSavingStaff] = useState(false);
+  const [staffDetailId, setStaffDetailId] = useState<string | null>(null);
+  const [staffBreakdown, setStaffBreakdown] = useState<StaffAttendanceBreakdown | null>(null);
+  const [staffDetailLoading, setStaffDetailLoading] = useState(false);
+  const [staffLookupDate, setStaffLookupDate] = useState(todayIso());
+  const [staffLookupResult, setStaffLookupResult] = useState<DateLookupResult | null>(null);
 
   useEffect(() => {
     if (!isManager) return;
@@ -50,30 +62,55 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!isManager) return;
-    api.get<{ staffId: string; status: AttendanceStatus }[]>("/api/v1/attendance/staff", { params: { for_date: staffDate } })
+    api.get<{ staffId: string; status: AttendanceStatus; reason: string | null }[]>("/api/v1/attendance/staff", { params: { for_date: staffDate } })
       .then((r) => {
         const map: Record<string, AttendanceStatus> = {};
-        r.data.forEach((row) => (map[row.staffId] = row.status));
+        const reasonMap: Record<string, string> = {};
+        r.data.forEach((row) => { map[row.staffId] = row.status; if (row.reason) reasonMap[row.staffId] = row.reason; });
         setStaffStatuses(map);
+        setStaffReasons(reasonMap);
       })
       .catch(() => {});
   }, [isManager, staffDate]);
 
   const setStaffStatus = (staffId: string, status: AttendanceStatus) => {
     setStaffStatuses((prev) => ({ ...prev, [staffId]: status }));
+    if (status === "present") setStaffReasons((prev) => { const n = { ...prev }; delete n[staffId]; return n; });
   };
+  const setStaffReason = (staffId: string, reason: string) => setStaffReasons((prev) => ({ ...prev, [staffId]: reason }));
 
   const saveStaffAttendance = async () => {
     setSavingStaff(true);
     try {
       await Promise.all(
         staffList.map((s) =>
-          api.post("/api/v1/attendance/staff", { staffId: s.id, date: staffDate, status: staffStatuses[s.id] || "present" })
+          api.post("/api/v1/attendance/staff", {
+            staffId: s.id, date: staffDate, status: staffStatuses[s.id] || "present",
+            reason: staffReasons[s.id] || undefined,
+          })
         )
       );
     } finally {
       setSavingStaff(false);
     }
+  };
+
+  const openStaffDetail = async (staffId: string) => {
+    setStaffDetailId(staffId);
+    setStaffDetailLoading(true);
+    setStaffLookupResult(null);
+    try {
+      const b = await getStaffBreakdown(staffId);
+      setStaffBreakdown(b);
+    } finally {
+      setStaffDetailLoading(false);
+    }
+  };
+  const closeStaffDetail = () => { setStaffDetailId(null); setStaffBreakdown(null); setStaffLookupResult(null); };
+  const lookupStaffDate = async () => {
+    if (!staffDetailId) return;
+    const r = await getStaffOnDate(staffDetailId, staffLookupDate);
+    setStaffLookupResult(r);
   };
 
   const exportStaffToExcel = () => {
@@ -95,7 +132,18 @@ export default function AttendancePage() {
   useEffect(() => { getMyBatches().then(setBatches).catch(() => {}); }, []);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"take" | "month" | "report">("take");
+  const [tab, setTab] = useState<"take" | "month" | "report" | "analytics">("take");
+
+  // ── Analytics ─────────────────────────────────────────────────────────────
+  const [analyticsBatchId, setAnalyticsBatchId] = useState("");
+  const [analytics, setAnalytics] = useState<AttendanceAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "analytics") return;
+    setAnalyticsLoading(true);
+    getAttendanceAnalytics(analyticsBatchId || undefined, 30).then(setAnalytics).finally(() => setAnalyticsLoading(false));
+  }, [tab, analyticsBatchId]);
 
   // ── Take attendance ───────────────────────────────────────────────────────
   const [batchId, setBatchId] = useState<string>("");
@@ -243,6 +291,9 @@ export default function AttendancePage() {
   const [detail, setDetail] = useState<StudentFullDetail | null>(null);
   const [breakdown, setBreakdown] = useState<AttendanceBreakdown | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [lookupDate, setLookupDate] = useState(todayIso());
+  const [lookupResult, setLookupResult] = useState<DateLookupResult | null>(null);
+  const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
 
   const loadReport = async () => {
     setReportLoading(true);
@@ -265,7 +316,9 @@ export default function AttendancePage() {
   }, []);
 
   const openStudentDetail = async (studentId: string) => {
+    setDetailStudentId(studentId);
     setDetailLoading(true);
+    setLookupResult(null);
     try {
       const [d, b] = await Promise.all([
         getStudentFullDetail(studentId, reportBatchId || undefined),
@@ -278,7 +331,12 @@ export default function AttendancePage() {
     }
   };
 
-  const closeDetail = () => { setDetail(null); setBreakdown(null); };
+  const closeDetail = () => { setDetail(null); setBreakdown(null); setDetailStudentId(null); setLookupResult(null); };
+  const lookupStudentDate = async () => {
+    if (!detailStudentId) return;
+    const r = await getStudentOnDate(detailStudentId, lookupDate);
+    setLookupResult(r);
+  };
 
   const shareSummary = () => {
     if (!detail || !breakdown) return;
@@ -324,27 +382,35 @@ export default function AttendancePage() {
           </div>
           <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
             {staffList.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{s.name}</p>
-                  <p className="text-xs text-slate-400">{s.email}</p>
+              <div key={s.id} className="px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <button onClick={() => openStaffDetail(s.id)} className="text-left hover:underline">
+                    <p className="text-sm font-medium text-slate-800">{s.name}</p>
+                    <p className="text-xs text-slate-400">{s.email}</p>
+                  </button>
+                  <div className="flex gap-2">
+                    {(["present", "late", "absent"] as AttendanceStatus[]).map((st) => (
+                      <button key={st} onClick={() => setStaffStatus(s.id, st)}
+                        className={`text-xs px-3 py-1.5 rounded-full capitalize ${
+                          staffStatuses[s.id] === st
+                            ? st === "present" ? "bg-emerald-600 text-white" : st === "late" ? "bg-amber-500 text-white" : "bg-rose-600 text-white"
+                            : "bg-slate-200 text-slate-500"
+                        }`}>
+                        {st}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {(["present", "late", "absent"] as AttendanceStatus[]).map((st) => (
-                    <button key={st} onClick={() => setStaffStatus(s.id, st)}
-                      className={`text-xs px-3 py-1.5 rounded-full capitalize ${
-                        staffStatuses[s.id] === st
-                          ? st === "present" ? "bg-emerald-600 text-white" : st === "late" ? "bg-amber-500 text-white" : "bg-rose-600 text-white"
-                          : "bg-slate-200 text-slate-500"
-                      }`}>
-                      {st}
-                    </button>
-                  ))}
-                </div>
+                {(staffStatuses[s.id] === "absent" || staffStatuses[s.id] === "late") && (
+                  <input placeholder="Reason (optional)" value={staffReasons[s.id] || ""}
+                    onChange={(e) => setStaffReason(s.id, e.target.value)}
+                    className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs" />
+                )}
               </div>
             ))}
             {staffList.length === 0 && <p className="px-4 py-3 text-sm text-slate-400">No faculty/trainer accounts found.</p>}
           </div>
+          <p className="text-xs text-slate-400 mt-2">Tap a name to see their full attendance history.</p>
           {staffList.length > 0 && (
             <button onClick={saveStaffAttendance} disabled={savingStaff}
               className="mt-4 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
@@ -357,7 +423,7 @@ export default function AttendancePage() {
       {/* ── Tab bar ──────────────────────────────────────────────────────── */}
       <div>
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit mb-6">
-          {([["take", "Take Attendance"], ["month", "Month View"], ["report", "Students / Report"]] as const).map(([id, label]) => (
+          {([["take", "Take Attendance"], ["month", "Month View"], ["report", "Students / Report"], ["analytics", "Analytics"]] as const).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition ${
                 tab === id ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -666,6 +732,81 @@ export default function AttendancePage() {
             )}
           </div>
         )}
+        {/* ── Analytics ────────────────────────────────────────────────────── */}
+        {tab === "analytics" && (
+          <div>
+            <select className="border border-slate-300 rounded-lg px-3 py-2 text-sm mb-6"
+              value={analyticsBatchId} onChange={(e) => setAnalyticsBatchId(e.target.value)}>
+              <option value="">All batches (last 30 days)</option>
+              {batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+
+            {analyticsLoading ? (
+              <ArcLoader label="Loading analytics" />
+            ) : analytics ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Present / Absent / Late split</h3>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Present", value: analytics.pie.present },
+                          { name: "Absent", value: analytics.pie.absent },
+                          { name: "Late", value: analytics.pie.late },
+                        ]}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label
+                      >
+                        <Cell fill={PIE_COLORS.present} />
+                        <Cell fill={PIE_COLORS.absent} />
+                        <Cell fill={PIE_COLORS.late} />
+                      </Pie>
+                      <Tooltip /><Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                    {analyticsBatchId ? "Selected batch" : "Attendance % by batch"}
+                  </h3>
+                  {analytics.bar.length === 0 ? (
+                    <p className="text-sm text-slate-400 flex items-center justify-center h-[240px]">
+                      {analyticsBatchId ? "Pick \"All batches\" to compare across batches." : "No data in the last 30 days."}
+                    </p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={analytics.bar}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+                        <Tooltip />
+                        <Bar dataKey="percent" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-4 lg:col-span-2">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Daily attendance % trend (last 30 days)</h3>
+                  {analytics.line.length === 0 ? (
+                    <p className="text-sm text-slate-400 flex items-center justify-center h-[240px]">No data in the last 30 days.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={analytics.line}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="percent" stroke="#4f46e5" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* ── Student detail modal ─────────────────────────────────────────── */}
@@ -724,6 +865,26 @@ export default function AttendancePage() {
                   } />
                 </div>
 
+                <div className="mt-5">
+                  <h3 className="text-xs uppercase font-semibold text-slate-400 mb-2">Check a specific date</h3>
+                  <div className="flex gap-2">
+                    <input type="date" value={lookupDate} onChange={(e) => setLookupDate(e.target.value)}
+                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1" />
+                    <button onClick={lookupStudentDate} className="text-sm px-4 py-2 bg-amber-500 text-white rounded-lg font-medium">Check</button>
+                  </div>
+                  {lookupResult && (
+                    <div className="mt-2 bg-slate-50 rounded-lg px-3 py-2 text-sm flex items-center justify-between">
+                      <span className={`font-semibold capitalize ${
+                        lookupResult.status === "present" ? "text-emerald-600" : lookupResult.status === "late" ? "text-amber-600" :
+                        lookupResult.status === "absent" ? "text-rose-600" : "text-slate-400"
+                      }`}>
+                        {lookupResult.status === "not_marked" ? "Not marked" : lookupResult.status}
+                      </span>
+                      {lookupResult.reason && <span className="text-xs text-slate-400">{lookupResult.reason}</span>}
+                    </div>
+                  )}
+                </div>
+
                 {breakdown && breakdown.months.length > 0 && (
                   <div className="mt-5">
                     <h3 className="text-xs uppercase font-semibold text-slate-400 mb-2">Month by month</h3>
@@ -748,6 +909,92 @@ export default function AttendancePage() {
                       {breakdown.absences.map((a, i) => (
                         <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
                           {a.photoUrl && <img src={a.photoUrl} alt="note" className="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-none" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-700">{prettyDate(a.date)}</p>
+                            <p className="text-xs text-slate-400 truncate">{a.reason || "No reason recorded"}</p>
+                          </div>
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.status === "absent" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                            {a.status === "absent" ? "Absent" : "Late"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Staff detail modal ───────────────────────────────────────────── */}
+      {(staffDetailId || staffDetailLoading) && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={closeStaffDetail}>
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {staffDetailLoading || !staffBreakdown ? (
+              <ArcLoader label="Loading attendance history" />
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-slate-800 text-lg">
+                    {staffList.find((s) => s.id === staffDetailId)?.name || "Faculty"}
+                  </h2>
+                  <button onClick={closeStaffDetail} className="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <div className="grid grid-cols-3 gap-4 flex-1">
+                    <div><p className="text-[10px] text-slate-400 uppercase font-semibold">Present</p><p className="text-lg font-bold text-emerald-600">{staffBreakdown.present}</p></div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-semibold">Absent</p><p className="text-lg font-bold text-rose-600">{staffBreakdown.absent}</p></div>
+                    <div><p className="text-[10px] text-slate-400 uppercase font-semibold">Late</p><p className="text-lg font-bold text-amber-600">{staffBreakdown.late}</p></div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-slate-800">{staffBreakdown.percent == null ? "—" : `${staffBreakdown.percent}%`}</p>
+                    <p className="text-xs text-slate-400">{staffBreakdown.total} days</p>
+                  </div>
+                </div>
+
+                <h3 className="text-xs uppercase font-semibold text-slate-400 mb-2">Check a specific date</h3>
+                <div className="flex gap-2 mb-4">
+                  <input type="date" value={staffLookupDate} onChange={(e) => setStaffLookupDate(e.target.value)}
+                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm flex-1" />
+                  <button onClick={lookupStaffDate} className="text-sm px-4 py-2 bg-amber-500 text-white rounded-lg font-medium">Check</button>
+                </div>
+                {staffLookupResult && (
+                  <div className="mb-4 bg-slate-50 rounded-lg px-3 py-2 text-sm flex items-center justify-between">
+                    <span className={`font-semibold capitalize ${
+                      staffLookupResult.status === "present" ? "text-emerald-600" : staffLookupResult.status === "late" ? "text-amber-600" :
+                      staffLookupResult.status === "absent" ? "text-rose-600" : "text-slate-400"
+                    }`}>
+                      {staffLookupResult.status === "not_marked" ? "Not marked" : staffLookupResult.status}
+                    </span>
+                    {staffLookupResult.reason && <span className="text-xs text-slate-400">{staffLookupResult.reason}</span>}
+                  </div>
+                )}
+
+                {staffBreakdown.months.length > 0 && (
+                  <div className="mb-5">
+                    <h3 className="text-xs uppercase font-semibold text-slate-400 mb-2">Month by month</h3>
+                    <div className="bg-slate-50 rounded-lg divide-y divide-white">
+                      {staffBreakdown.months.map((m) => (
+                        <div key={m.month} className="flex items-center justify-between px-3 py-2 text-sm">
+                          <div>
+                            <p className="font-medium text-slate-700">{new Date(m.month + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>
+                            <p className="text-xs text-slate-400">{m.absent} absent · {m.late} late · {m.total} days</p>
+                          </div>
+                          <span className="font-semibold text-slate-700">{m.percent == null ? "—" : `${m.percent}%`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {staffBreakdown.absences.length > 0 && (
+                  <div>
+                    <h3 className="text-xs uppercase font-semibold text-slate-400 mb-2">Every absence / late</h3>
+                    <div className="bg-slate-50 rounded-lg divide-y divide-white">
+                      {staffBreakdown.absences.map((a, i) => (
+                        <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-slate-700">{prettyDate(a.date)}</p>
                             <p className="text-xs text-slate-400 truncate">{a.reason || "No reason recorded"}</p>
