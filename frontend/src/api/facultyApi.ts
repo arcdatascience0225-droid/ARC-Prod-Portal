@@ -110,6 +110,37 @@ export const getAttendanceReport = (params: { batchId?: string; startDate?: stri
     },
   }).then((r) => r.data);
 
+// ---------- Holidays ----------
+export interface Holiday { id: string; date: string; label: string; batchId?: string | null }
+
+export const listHolidays = (batchId?: string) =>
+  apiClient.get<Holiday[]>("/attendance/holidays", { params: { batch_id: batchId || undefined } }).then((r) => r.data);
+
+export const addHoliday = (date: string, label: string, batchId?: string) =>
+  apiClient.post<Holiday>("/attendance/holidays", { date, label, batchId: batchId || null }).then((r) => r.data);
+
+export const removeHoliday = (holidayId: string) =>
+  apiClient.delete(`/attendance/holidays/${holidayId}`);
+
+// ---------- Month grid ----------
+export interface MonthGridRow { studentId: string; studentName: string; cells: string[]; percent: number | null }
+export interface MonthGrid { dates: string[]; rows: MonthGridRow[]; classPercent: number | null; absences: number; lates: number }
+
+export const getMonthGrid = (batchId: string, year: number, month: number) =>
+  apiClient.get<MonthGrid>("/attendance/month-grid", { params: { batch_id: batchId, year, month } }).then((r) => r.data);
+
+// ---------- Student breakdown (month-by-month + absence list) ----------
+export interface AttendanceBreakdown {
+  present: number; absent: number; late: number; total: number; percent: number | null;
+  months: { month: string; present: number; absent: number; late: number; total: number; percent: number | null }[];
+  absences: { date: string; status: string; reason: string | null; photoUrl: string | null }[];
+}
+
+export const getStudentBreakdown = (studentId: string, batchId?: string) =>
+  apiClient.get<AttendanceBreakdown>(`/attendance/student/${studentId}/breakdown`, {
+    params: { batch_id: batchId || undefined },
+  }).then((r) => r.data);
+
 export interface StudentFullDetail {
   studentId: string;
   studentName: string;

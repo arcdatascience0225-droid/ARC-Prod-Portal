@@ -16,6 +16,7 @@ class AttendanceService:
         self.repo = AttendanceRepository(db)
 
     def mark_attendance(self, payload: AttendanceMarkRequest, marked_by: UUID) -> List[AttendanceOut]:
+        from app.models.attendance import AttendanceNote
         results = []
         for entry in payload.entries:
             record = self.repo.upsert_entry(
@@ -23,6 +24,18 @@ class AttendanceService:
                 entry_date=payload.date, status=entry.status,
                 marked_by=marked_by, method=payload.method,
             )
+            note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == record.id).first()
+            if entry.reason or entry.photoUrl:
+                if note:
+                    note.reason = entry.reason
+                    note.photo_url = entry.photoUrl
+                else:
+                    note = AttendanceNote(attendance_id=record.id, reason=entry.reason, photo_url=entry.photoUrl)
+                    self.db.add(note)
+                self.db.commit()
+            elif note and entry.status == "present":
+                self.db.delete(note)
+                self.db.commit()
             results.append(self._to_out(record))
         return results
 
@@ -198,8 +211,117 @@ class AttendanceService:
             return resp.json()
 
     def _to_out(self, record) -> AttendanceOut:
+        from app.models.attendance import AttendanceNote
+        note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == record.id).first()
         return AttendanceOut(
             id=record.id, batchId=record.batch_id, studentId=record.student_id,
             date=record.date, status=record.status, method=record.method,
             markedBy=record.marked_by, createdAt=record.created_at,
+            reason=note.reason if note else None, photoUrl=note.photo_url if note else None,
         )
+
+    # ---------- Holidays ----------
+    def list_holidays(self, batch_id: UUID | None = None) -> list[dict]:
+        from app.models.attendance import Holiday
+        q = self.db.query(Holiday)
+        if batch_id:
+            q = q.filter((Holiday.batch_id == batch_id) | (Holiday.batch_id.is_(None)))
+        rows = q.order_by(Holiday.date.desc()).all()
+        return [{"id": h.id, "date": h.date, "label": h.label, "batchId": h.batch_id} for h in rows]
+
+    def add_holiday(self, entry_date: date, label: str, batch_id: UUID | None, created_by: UUID) -> dict:
+        from app.models.attendance import Holiday
+        h = Holiday(date=entry_date, label=label, batch_id=batch_id, created_by=created_by)
+        self.db.add(h)
+        self.db.commit()
+        self.db.refresh(h)
+        return {"id": h.id, "date": h.date, "label": h.label, "batchId": h.batch_id}
+
+    def remove_holiday(self, holiday_id: UUID) -> None:
+        from app.models.attendance import Holiday
+        h = self.db.query(Holiday).filter(Holiday.id == holiday_id).first()
+        if h:
+            self.db.delete(h)
+            self.db.commit()
+
+    # ---------- Month grid ----------
+    def month_grid(self, batch_id: UUID, year: int, month: int) -> dict:
+        """Every student in the batch x every date in the month that has at
+        least one mark - the spreadsheet-style Month view."""
+        from calendar import monthrange
+        from app.models.attendance import Attendance
+        from app.models.user import User
+        from app.models.course import BatchStudent
+
+        start = date(year, month, 1)
+        end = date(year, month, monthrange(year, month)[1])
+        records = self.db.query(Attendance).filter(
+            Attendance.batch_id == batch_id, Attendance.date >= start, Attendance.date <= end,
+        ).all()
+        dates = sorted({r.date for r in records})
+
+        student_ids = [r[0] for r in self.db.query(BatchStudent.user_id).filter(BatchStudent.batch_id == batch_id).all()]
+        students = self.db.query(User).filter(User.id.in_(student_ids)).order_by(User.name).all()
+
+        by_student_date = {(r.student_id, r.date): r.status for r in records}
+        rows = []
+        for s in students:
+            cells = [by_student_date.get((s.id, d), "-") for d in dates]
+            present_count = sum(1 for c in cells if c in ("present", "late"))
+            marked_count = sum(1 for c in cells if c != "-")
+            pct = round(present_count / marked_count * 100, 1) if marked_count else None
+            rows.append({"studentId": str(s.id), "studentName": s.name, "cells": cells, "percent": pct})
+
+        present_total = sum(1 for r in records if r.status in ("present", "late"))
+        class_pct = round(present_total / len(records) * 100, 1) if records else None
+
+        return {
+            "dates": [d.isoformat() for d in dates],
+            "rows": rows,
+            "classPercent": class_pct,
+            "absences": sum(1 for r in records if r.status == "absent"),
+            "lates": sum(1 for r in records if r.status == "late"),
+        }
+
+    # ---------- Enhanced student detail: month-by-month + full absence list ----------
+    def student_attendance_breakdown(self, student_id: UUID, batch_id: UUID | None = None) -> dict:
+        from app.models.attendance import Attendance, AttendanceNote
+
+        q = self.db.query(Attendance).filter(Attendance.student_id == student_id)
+        if batch_id:
+            q = q.filter(Attendance.batch_id == batch_id)
+        records = q.order_by(Attendance.date.desc()).all()
+
+        by_month: dict = {}
+        for r in records:
+            key = r.date.strftime("%Y-%m")
+            by_month.setdefault(key, {"present": 0, "absent": 0, "late": 0})
+            by_month[key][r.status] += 1
+        months = [
+            {"month": k, **v, "total": v["present"] + v["absent"] + v["late"],
+             "percent": round((v["present"] + v["late"]) / (v["present"] + v["absent"] + v["late"]) * 100, 1)
+             if (v["present"] + v["absent"] + v["late"]) else None}
+            for k, v in sorted(by_month.items(), reverse=True)
+        ]
+
+        absences = []
+        for r in records:
+            if r.status == "present":
+                continue
+            note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == r.id).first()
+            absences.append({
+                "date": r.date.isoformat(), "status": r.status,
+                "reason": note.reason if note else None,
+                "photoUrl": note.photo_url if note else None,
+            })
+
+        present = sum(1 for r in records if r.status == "present")
+        absent = sum(1 for r in records if r.status == "absent")
+        late = sum(1 for r in records if r.status == "late")
+        total = len(records)
+        pct = round((present + late) / total * 100, 1) if total else None
+
+        return {
+            "present": present, "absent": absent, "late": late, "total": total, "percent": pct,
+            "months": months, "absences": absences,
+        }

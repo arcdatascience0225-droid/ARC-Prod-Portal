@@ -339,6 +339,8 @@ export type AttendanceStatus = "present" | "absent" | "late";
 export interface AttendanceEntry {
   studentId: string;
   status: AttendanceStatus;
+  reason?: string;
+  photoUrl?: string;
 }
 
 export interface AttendanceRecord {
@@ -350,6 +352,8 @@ export interface AttendanceRecord {
   method: "manual" | "face_recognition";
   markedBy: string;
   createdAt: string;
+  reason?: string | null;
+  photoUrl?: string | null;
 }
 
 export type QuestionType = "mcq" | "coding" | "sql" | "descriptive";

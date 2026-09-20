@@ -10,6 +10,8 @@ AttendanceStatus = Literal["present", "absent", "late"]
 class AttendanceEntry(BaseModel):
     studentId: UUID
     status: AttendanceStatus
+    reason: str | None = None
+    photoUrl: str | None = None
 
 
 class AttendanceMarkRequest(BaseModel):
@@ -30,6 +32,8 @@ class AttendanceOut(BaseModel):
     method: str
     markedBy: UUID
     createdAt: datetime
+    reason: str | None = None
+    photoUrl: str | None = None
 
 
 class AttendanceFaceRecognitionHook(BaseModel):

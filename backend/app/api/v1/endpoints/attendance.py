@@ -141,3 +141,57 @@ async def face_recognition_hook(
     NOT implemented in this phase - this is a structural placeholder only.
     """
     return await AttendanceService(db).trigger_face_recognition(payload)
+
+
+@router.get("/holidays", summary="List holidays (optionally scoped to one batch)")
+def list_holidays(
+    batch_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    return AttendanceService(db).list_holidays(batch_id)
+
+
+@router.post("/holidays", summary="Mark a day as a holiday")
+def add_holiday(
+    payload: dict,  # {"date": "YYYY-MM-DD", "label": "...", "batchId": str | null}
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    from fastapi import HTTPException
+    label = (payload.get("label") or "").strip()
+    if not label or not payload.get("date"):
+        raise HTTPException(status_code=400, detail="date and label are required")
+    return AttendanceService(db).add_holiday(
+        date.fromisoformat(payload["date"]), label, payload.get("batchId"), current_user.id,
+    )
+
+
+@router.delete("/holidays/{holiday_id}", status_code=204, summary="Remove a holiday")
+def remove_holiday(
+    holiday_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    AttendanceService(db).remove_holiday(holiday_id)
+
+
+@router.get("/month-grid", summary="Spreadsheet-style month view: every student x every marked date")
+def month_grid(
+    batch_id: UUID,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    return AttendanceService(db).month_grid(batch_id, year, month)
+
+
+@router.get("/student/{student_id}/breakdown", summary="Month-by-month breakdown + full absence list for a student")
+def student_breakdown(
+    student_id: UUID,
+    batch_id: UUID | None = None,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(attendance_marker),
+):
+    return AttendanceService(db).student_attendance_breakdown(student_id, batch_id)
