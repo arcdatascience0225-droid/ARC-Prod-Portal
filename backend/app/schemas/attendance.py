@@ -19,6 +19,7 @@ class AttendanceMarkRequest(BaseModel):
     date: date
     entries: List[AttendanceEntry]
     method: Literal["manual", "face_recognition"] = "manual"
+    mode: Literal["online", "offline"] = "offline"
 
 
 class AttendanceOut(BaseModel):
@@ -30,6 +31,7 @@ class AttendanceOut(BaseModel):
     date: date
     status: str
     method: str
+    mode: str
     markedBy: UUID
     createdAt: datetime
     reason: str | None = None

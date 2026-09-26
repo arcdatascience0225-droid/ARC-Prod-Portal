@@ -22,7 +22,7 @@ class AttendanceService:
             record = self.repo.upsert_entry(
                 batch_id=payload.batchId, student_id=entry.studentId,
                 entry_date=payload.date, status=entry.status,
-                marked_by=marked_by, method=payload.method,
+                marked_by=marked_by, method=payload.method, mode=payload.mode,
             )
             note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == record.id).first()
             if entry.reason or entry.photoUrl:
@@ -215,7 +215,7 @@ class AttendanceService:
         note = self.db.query(AttendanceNote).filter(AttendanceNote.attendance_id == record.id).first()
         return AttendanceOut(
             id=record.id, batchId=record.batch_id, studentId=record.student_id,
-            date=record.date, status=record.status, method=record.method,
+            date=record.date, status=record.status, method=record.method, mode=record.mode,
             markedBy=record.marked_by, createdAt=record.created_at,
             reason=note.reason if note else None, photoUrl=note.photo_url if note else None,
         )

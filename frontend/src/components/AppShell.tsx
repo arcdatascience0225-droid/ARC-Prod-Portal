@@ -45,7 +45,14 @@ interface NavGroup { label: string; items: NavItem[]; collapsible?: boolean; }
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ to: "/dashboard", label: "Dashboard", roles: ["super_admin","admin","hr","placement_coordinator","counsellor","guest"], icon: Icons.dashboard }],
+    items: [{ to: "/dashboard", label: "Dashboard", roles: ["super_admin","admin","hr","placement_coordinator","counsellor","manager","guest"], icon: Icons.dashboard }],
+  },
+  {
+    label: "Attendance",
+    items: [
+      { to: "/attendance/students", label: "Student Attendance", roles: ["manager","admin","super_admin"], icon: Icons.clipboard },
+      { to: "/attendance/faculty",  label: "Faculty Attendance",  roles: ["manager","admin","super_admin"], icon: Icons.clipboard },
+    ],
   },
   {
     label: "Registration",
@@ -84,7 +91,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/faculty/dashboard",      label: "Faculty Dashboard",    roles: ["faculty","trainer","super_admin"], icon: Icons.dashboard },
       { to: "/faculty/announcements",  label: "Announcements",        roles: ["faculty","trainer","super_admin"], icon: Icons.megaphone },
-      { to: "/faculty/attendance",     label: "Attendance",           roles: ["faculty","trainer","super_admin","manager"], icon: Icons.clipboard },
       { to: "/faculty/question-bank",  label: "Question Bank",        roles: ["faculty","trainer","super_admin"], icon: Icons.book },
       { to: "/faculty/assessments",    label: "My Assessments",       roles: ["faculty","trainer","super_admin"], icon: Icons.clipboard },
       { to: "/faculty/assessments/new","label": "Create Assessment",  roles: ["faculty","trainer","super_admin"], icon: Icons.clipboard },

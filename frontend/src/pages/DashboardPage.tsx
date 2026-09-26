@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ManagerDashboardPage from "./faculty/ManagerDashboard";
 
 /** `/` and `/dashboard` are entry points hit right after login (and on a
  * bare visit to the site) — they should never render their own content,
@@ -19,7 +20,7 @@ export const DashboardPage: React.FC = () => {
   if (user.role === "hr") return <Navigate to="/hr/analytics" replace />;
   if (user.role === "placement_coordinator") return <Navigate to="/hr/analytics" replace />;
   if (user.role === "counsellor") return <Navigate to="/counsellor/leads" replace />;
-  if (user.role === "manager") return <Navigate to="/faculty/attendance" replace />;
+  if (user.role === "manager") return <ManagerDashboardPage />;
 
   // No dedicated dashboard for this role — nothing else to redirect to.
   return null;

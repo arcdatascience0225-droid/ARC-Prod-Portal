@@ -12,11 +12,12 @@ class AttendanceRepository:
         self.db = db
 
     def upsert_entry(self, batch_id: UUID, student_id: UUID, entry_date: date,
-                      status: str, marked_by: UUID, method: str) -> Attendance:
+                      status: str, marked_by: UUID, method: str, mode: str = "offline") -> Attendance:
         existing = self.db.query(Attendance).filter(
             Attendance.batch_id == batch_id,
             Attendance.student_id == student_id,
             Attendance.date == entry_date,
+            Attendance.mode == mode,
         ).first()
         if existing:
             existing.status = status
@@ -28,7 +29,7 @@ class AttendanceRepository:
 
         record = Attendance(
             batch_id=batch_id, student_id=student_id, date=entry_date,
-            status=status, marked_by=marked_by, method=method,
+            status=status, marked_by=marked_by, method=method, mode=mode,
         )
         self.db.add(record)
         self.db.commit()

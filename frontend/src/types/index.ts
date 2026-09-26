@@ -350,6 +350,7 @@ export interface AttendanceRecord {
   date: string;
   status: AttendanceStatus;
   method: "manual" | "face_recognition";
+  mode: "online" | "offline";
   markedBy: string;
   createdAt: string;
   reason?: string | null;

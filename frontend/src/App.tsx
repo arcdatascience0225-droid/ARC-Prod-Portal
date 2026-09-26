@@ -40,7 +40,8 @@ import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 import BatchDetailPage from "./pages/faculty/BatchDetailPage";
 import StudentDetailPage from "./pages/faculty/StudentDetailPage";
 import AnnouncementsPage from "./pages/faculty/Announcements";
-import AttendancePage from "./pages/faculty/Attendance";
+import StudentAttendancePage from "./pages/faculty/StudentAttendance";
+import FacultyAttendancePage from "./pages/faculty/FacultyAttendance";
 import ChatPage from "./pages/faculty/Chat";
 import CreateAssessmentPage from "./pages/faculty/CreateAssessment";
 import MyAssessmentsPage from "./pages/faculty/MyAssessmentsPage";
@@ -157,7 +158,8 @@ const App: React.FC = () => (
           <Route path="/faculty/batches/:batchId" element={gate(FACULTY_ROLES, <BatchDetailPage />)} />
           <Route path="/faculty/students/:studentId" element={gate(FACULTY_ROLES, <StudentDetailPage />)} />
           <Route path="/faculty/announcements" element={gate(FACULTY_ROLES, <AnnouncementsPage />)} />
-          <Route path="/faculty/attendance" element={gate([...FACULTY_ROLES, "manager"], <AttendancePage />)} />
+          <Route path="/attendance/students" element={gate([...MANAGER_ROLES, "admin"], <StudentAttendancePage />)} />
+          <Route path="/attendance/faculty" element={gate([...MANAGER_ROLES, "admin"], <FacultyAttendancePage />)} />
           <Route path="/faculty/chat" element={gate(FACULTY_ROLES, <ChatPage />)} />
           <Route path="/faculty/assessments" element={gate(FACULTY_ROLES, <MyAssessmentsPage />)} />
           <Route path="/faculty/assessments/new" element={gate(FACULTY_ROLES, <CreateAssessmentPage />)} />

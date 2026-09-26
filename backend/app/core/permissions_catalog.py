@@ -12,7 +12,11 @@ for "what can this user see".
 PERMISSIONS_CATALOG = [
     # (path, label, group, default_roles)
     {"path": "/dashboard", "label": "Dashboard", "group": "Overview",
-     "defaultRoles": ["super_admin", "admin", "hr", "placement_coordinator", "counsellor", "guest"]},
+     "defaultRoles": ["super_admin", "admin", "hr", "placement_coordinator", "counsellor", "manager", "guest"]},
+    {"path": "/attendance/students", "label": "Student Attendance", "group": "Attendance",
+     "defaultRoles": ["manager", "admin", "super_admin"]},
+    {"path": "/attendance/faculty", "label": "Faculty Attendance", "group": "Attendance",
+     "defaultRoles": ["manager", "admin", "super_admin"]},
 
     {"path": "/student/dashboard", "label": "Dashboard", "group": "Learning",
      "defaultRoles": ["student"]},
@@ -51,8 +55,6 @@ PERMISSIONS_CATALOG = [
      "defaultRoles": ["faculty", "trainer", "super_admin"]},
     {"path": "/faculty/announcements", "label": "Announcements", "group": "Faculty Portal",
      "defaultRoles": ["faculty", "trainer", "super_admin"]},
-    {"path": "/faculty/attendance", "label": "Attendance", "group": "Faculty Portal",
-     "defaultRoles": ["faculty", "trainer", "super_admin", "manager"]},
     {"path": "/faculty/question-bank", "label": "Question Bank", "group": "Faculty Portal",
      "defaultRoles": ["faculty", "trainer", "super_admin"]},
     {"path": "/faculty/assessments", "label": "My Assessments", "group": "Faculty Portal",

@@ -77,9 +77,9 @@ export const getBatchDetail = (batchId: string) =>
   apiClient.get<BatchDetail>(`/faculty/batches/${batchId}/detail`).then((r) => r.data);
 
 // ---------- Attendance ----------
-export const markAttendance = (batchId: string, date: string, entries: AttendanceEntry[]) =>
+export const markAttendance = (batchId: string, date: string, entries: AttendanceEntry[], mode: "online" | "offline" = "offline") =>
   apiClient
-    .post<AttendanceRecord[]>("/attendance", { batchId, date, entries, method: "manual" })
+    .post<AttendanceRecord[]>("/attendance", { batchId, date, entries, method: "manual", mode })
     .then((r) => r.data);
 
 export const getBatchAttendance = (batchId: string, forDate: string) =>
